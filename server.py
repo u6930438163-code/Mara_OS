@@ -16,6 +16,8 @@ from services.ai import ask_agent, analyze_image, AIError
 from services.github_read import repo_info, GitHubError
 from services.openai_agents import available as agents_available, run_agent
 from services.worker_registry import list_workers, add_worker, remove_worker
+from services.kernel_adaptation import snapshot as kernel_snapshot
+from services.resource_policy import recommend_limits
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 4 * 1024 * 1024
@@ -38,6 +40,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/kernel/resources":
+            if not self._authorized():
+                return self._json(401, {"error": "Unauthorized"})
+            info = kernel_snapshot()
+            return self._json(200, {"kernel": info, "policy": recommend_limits(info)})
         if path == "/api/workers":
             if not self._authorized():
                 return self._json(401, {"error": "Unauthorized"})
