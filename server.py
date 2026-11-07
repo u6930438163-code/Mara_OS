@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from services.dalle3 import generate_image, ImageGenerationError
 from services.tasks import create_task, list_tasks
 from services.ai import ask_agent, analyze_image, AIError
+from services.vision_history import save as save_vision, list_recent as vision_history, delete_all as clear_vision_history
 from services.github_read import repo_info, GitHubError
 from services.openai_agents import available as agents_available, run_agent
 from services.worker_registry import list_workers, add_worker, remove_worker
@@ -44,6 +45,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/vision/history":
+            if not self._authorized():
+                return self._json(401, {"error": "Unauthorized"})
+            return self._json(200, {"items": vision_history()})
         if path == "/api/desktop/kwin-plan":
             if not self._authorized():
                 return self._json(401, {"error": "Unauthorized"})
@@ -110,7 +115,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
-        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision", "/api/agents/run", "/api/workers/create", "/api/workers/remove", "/api/desktop/events", "/api/worker-jobs"):
+        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision", "/api/agents/run", "/api/workers/create", "/api/workers/remove", "/api/desktop/events", "/api/worker-jobs", "/api/vision/history/clear"):
             return self._json(404, {"error": "Not found"})
         if not self._authorized():
             return self._json(401, {"error": "Unauthorized"})
@@ -123,6 +128,8 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict):
                 return self._json(400, {"error": "Expected JSON object"})
+            if path == "/api/vision/history/clear":
+                return self._json(200, {"deleted": clear_vision_history()})
             if path == "/api/worker-jobs":
                 return self._json(201, {"id": enqueue_worker_job(data.get("agent"), data.get("kind"), data.get("payload"))})
             if path == "/api/desktop/events":
@@ -144,7 +151,10 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/ai/chat":
                 return self._json(200, ask_agent(data.get("agent", ""), data.get("message", "")))
             if path == "/api/ai/vision":
-                return self._json(200, analyze_image(data.get("question", ""), data.get("image", "")))
+                result = analyze_image(data.get("question", ""), data.get("image", ""))
+                if data.get("save_history") is True:
+                    save_vision(data.get("agent", ""), data.get("source", "image"), data.get("question", ""), result.get("text", ""))
+                return self._json(200, result)
             if path == "/api/tasks":
                 TASK_DB.parent.mkdir(parents=True, exist_ok=True)
                 ident = create_task(TASK_DB, data.get("description", ""))
