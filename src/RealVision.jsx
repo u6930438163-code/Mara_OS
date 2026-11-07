@@ -75,8 +75,7 @@ export default function RealVision({authToken=""}) {
     } catch(err) {setError(err.message || "Nie udało się przechwycić obrazu.");}
     finally {stream?.getTracks().forEach(track=>track.stop());captureStream.current=null;setCaptureBusy(false);}
   }
-  async function chooseVideo(event) {
-    const file=event.target.files?.[0];
+  async function processVideo(file) {
     setVideoFrames([]);setError("");setProgress("");
     if (!file) return;
     if (!file.type.startsWith("video/") || file.size>100*1024*1024) {setError("Wideo musi mieć maksymalnie 100 MB.");return;}
@@ -101,6 +100,7 @@ export default function RealVision({authToken=""}) {
     } catch(err) {setError(err.message||"Nie udało się odczytać wideo.");}
     finally {video.removeAttribute("src");video.load();URL.revokeObjectURL(url);setCaptureBusy(false);}
   }
+  async function chooseVideo(event) { await processVideo(event.target.files?.[0]); }
   async function choose(event) {
     const file=event.target.files?.[0];
     setResult(""); setError(""); setImage(""); setFilename("");setVideoFrames([]);
@@ -142,7 +142,7 @@ export default function RealVision({authToken=""}) {
     } catch(err) {setError(err.message || "Nie udało się połączyć z Vision.");}
     finally {setBusy(false);setProgress("");}
   }
-  return <div style={{display:"grid",gap:12}}><VideoRecorder/><section className="glass-card" style={{width:"100%",boxSizing:"border-box"}}>
+  return <div style={{display:"grid",gap:12}}><VideoRecorder onRecordingReady={processVideo}/><section className="glass-card" style={{width:"100%",boxSizing:"border-box"}}>
     <div className="panel-header"><div><h2>Real Vision + Ollama</h2><p>Llama 3.2 Vision 11B · analiza na żądanie</p></div><span className="pill">{busy?"Analiza…":"Gotowy do przesłania"}</span></div>
     <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
       <label>Zdjęcie / zrzut ekranu <input type="file" accept="image/png,image/jpeg,image/webp" onChange={choose}/></label>
