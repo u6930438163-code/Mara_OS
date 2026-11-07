@@ -12,6 +12,8 @@ from urllib.parse import urlsplit
 
 from services.dalle3 import generate_image, ImageGenerationError
 from services.tasks import create_task, list_tasks
+from services.ai import ask_agent, analyze_image, AIError
+from services.github_read import repo_info, GitHubError
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 8192
@@ -34,6 +36,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/github/repo":
+            if not self._authorized():
+                return self._json(401, {"error": "Unauthorized"})
+            from urllib.parse import parse_qs
+            name = parse_qs(urlsplit(self.path).query).get("name", [""])[0]
+            try:
+                return self._json(200, repo_info(name))
+            except ValueError:
+                return self._json(400, {"error": "Invalid repository"})
+            except GitHubError:
+                return self._json(502, {"error": "GitHub unavailable"})
         if path == "/api/tasks":
             if not self._authorized():
                 return self._json(401, {"error": "Unauthorized"})
@@ -45,7 +58,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
-        if path not in ("/api/images/generate", "/api/tasks"):
+        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision"):
             return self._json(404, {"error": "Not found"})
         if not self._authorized():
             return self._json(401, {"error": "Unauthorized"})
@@ -58,6 +71,10 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict):
                 return self._json(400, {"error": "Expected JSON object"})
+            if path == "/api/ai/chat":
+                return self._json(200, ask_agent(data.get("agent", ""), data.get("message", "")))
+            if path == "/api/ai/vision":
+                return self._json(200, analyze_image(data.get("question", ""), data.get("image", "")))
             if path == "/api/tasks":
                 TASK_DB.parent.mkdir(parents=True, exist_ok=True)
                 ident = create_task(TASK_DB, data.get("description", ""))
@@ -68,6 +85,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, result)
         except (ValueError, TypeError, json.JSONDecodeError):
             return self._json(400, {"error": "Invalid image request"})
+        except AIError:
+            return self._json(502, {"error": "AI service unavailable"})
         except ImageGenerationError as exc:
             self.log_error("Image generation failed: %s", type(exc).__name__)
             return self._json(502, {"error": "Image generation unavailable"})
