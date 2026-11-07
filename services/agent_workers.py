@@ -35,7 +35,7 @@ def event(db, job_id, agent, state, message):
                (job_id, agent, state, message[:1000], int(time.time())))
 
 def enqueue(agent, kind, payload):
-    if agent not in AGENTS or kind not in ("chat", "diagnostics"):
+    if agent not in AGENTS or kind not in ("chat", "diagnostics", "vision_report"):
         raise ValueError("Unknown agent or task kind")
     if not isinstance(payload, str) or not 1 <= len(payload) <= 8000:
         raise ValueError("Invalid payload")
@@ -71,6 +71,10 @@ def claim(agent, kind=None):
         return dict(row)
 
 async def execute(agent, job):
+    if job["kind"] == "vision_report":
+        from services.ai import ask_agent
+        response = await asyncio.wait_for(asyncio.to_thread(ask_agent, agent, job["payload"]), timeout=180)
+        return response["text"]
     if job["kind"] == "chat":
         from services.openai_agents import run_agent
         response = await asyncio.wait_for(asyncio.to_thread(run_agent, agent, job["payload"]), timeout=120)
