@@ -30,14 +30,17 @@ if [[ ! -t 0 ]]; then
 fi
 echo "Set the root account password locally (input is hidden)."
 passwd root
-printf '%s\n' '# Mara_OS root-only SSH' 'PermitRootLogin yes' 'PasswordAuthentication yes' 'AllowUsers root' > /etc/ssh/sshd_config.d/60-mara-os.conf
-chmod 0644 /etc/ssh/sshd_config.d/60-mara-os.conf
-if ! /usr/sbin/sshd -t; then
-  echo "SSH configuration invalid; service was not enabled." >&2
+printf '%s\n' '# Mara_OS root-only SSH' 'PermitRootLogin yes' 'PasswordAuthentication yes' 'AllowUsers root' > /etc/ssh/sshd_config.d/00-mara-os.conf
+chmod 0644 /etc/ssh/sshd_config.d/00-mara-os.conf
+# Remove the previous Mara_OS drop-in to avoid conflicting first-value-wins settings.
+rm -f /etc/ssh/sshd_config.d/60-mara-os.conf
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if ! bash "$SCRIPT_DIR/check-ssh-config.sh"; then
+  echo "Effective SSH policy verification failed; service not enabled by this installer." >&2
   exit 1
 fi
 systemctl enable --now ssh.service
 systemctl reload ssh.service
 systemctl --no-pager --full status ssh.service || true
 echo "SSH server enabled on boot. Check firewall, authorized users and network exposure."
-echo "For remote access, use: ssh USER@HOST_IP"
+echo "For remote access, use: ssh root@HOST_IP"
