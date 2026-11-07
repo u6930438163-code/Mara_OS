@@ -6,7 +6,7 @@ import "./dalle3-studio.css";
  * The backend must expose an authenticated POST /api/images/generate route
  * that invokes services/dalle3.py, with server-side rate limiting.
  */
-export default function Dalle3Studio({ endpoint = "/api/images/generate" }) {
+export default function Dalle3Studio({ endpoint = "/api/images/generate", authToken = "" }) {
   const [prompt, setPrompt] = useState("");
   const [size, setSize] = useState("1024x1024");
   const [quality, setQuality] = useState("hd");
@@ -24,7 +24,7 @@ export default function Dalle3Studio({ endpoint = "/api/images/generate" }) {
     try {
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
         credentials: "same-origin",
         body: JSON.stringify({ prompt, size, quality, style })
       });
