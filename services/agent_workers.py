@@ -82,6 +82,13 @@ async def execute(agent, job):
         return json.dumps(await run_adapter(job["payload"]), ensure_ascii=False)
     raise ValueError("Unsupported task kind")
 
+def desktop_signal(agent, window, action):
+    try:
+        from services.live_desktop import emit
+        emit(agent, window, action)
+    except (OSError, sqlite3.Error) as exc:
+        print(f'Desktop event unavailable: {type(exc).__name__}', flush=True)
+
 async def worker(agent, kind=None, slot_id=None):
     while True:
         if slot_id:
@@ -93,6 +100,9 @@ async def worker(agent, kind=None, slot_id=None):
         if job is None:
             await asyncio.sleep(POLL_SECONDS)
             continue
+        window = 'terminal' if job['kind'] == 'diagnostics' else 'chat'
+        await asyncio.to_thread(desktop_signal, agent, window, 'show')
+        await asyncio.to_thread(desktop_signal, agent, 'logs', 'show')
         try:
             result = await execute(agent, job)
             state, message = "done", "Completed"
@@ -103,6 +113,7 @@ async def worker(agent, kind=None, slot_id=None):
             db.execute("UPDATE jobs SET state=?,result=?,updated_at=? WHERE id=?",
                        (state, str(result)[:24000], int(time.time()), job["id"]))
             event(db, job["id"], agent, state, message)
+        # Keep the task's result visible; only the agent/user should dismiss it.
 
 async def main():
     # Crash recovery: requeue incomplete jobs on restart.
