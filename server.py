@@ -19,6 +19,7 @@ from services.worker_registry import list_workers, add_worker, remove_worker
 from services.kernel_adaptation import snapshot as kernel_snapshot
 from services.resource_policy import recommend_limits
 from services.live_desktop import events as desktop_events, emit as desktop_emit
+from services.agent_workers import enqueue as enqueue_worker_job, get_jobs as worker_jobs
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 4 * 1024 * 1024
@@ -41,6 +42,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/worker-jobs":
+            if not self._authorized():
+                return self._json(401, {"error": "Unauthorized"})
+            return self._json(200, {"jobs": worker_jobs()})
         if path == "/api/desktop/events":
             if not self._authorized():
                 return self._json(401, {"error": "Unauthorized"})
@@ -85,7 +90,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
-        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision", "/api/agents/run", "/api/workers/create", "/api/workers/remove", "/api/desktop/events"):
+        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision", "/api/agents/run", "/api/workers/create", "/api/workers/remove", "/api/desktop/events", "/api/worker-jobs"):
             return self._json(404, {"error": "Not found"})
         if not self._authorized():
             return self._json(401, {"error": "Unauthorized"})
@@ -98,6 +103,8 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict):
                 return self._json(400, {"error": "Expected JSON object"})
+            if path == "/api/worker-jobs":
+                return self._json(201, {"id": enqueue_worker_job(data.get("agent"), data.get("kind"), data.get("payload"))})
             if path == "/api/desktop/events":
                 return self._json(201, {"id": desktop_emit(data.get("agent"), data.get("window"), data.get("action"))})
             if path == "/api/workers/create":
