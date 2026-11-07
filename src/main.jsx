@@ -4,13 +4,14 @@ import Dalle3Studio from "../ui/Dalle3Studio.jsx";
 import IntegrationsPanel from "./IntegrationsPanel.jsx";
 import ChatDallePrompts from "./ChatDallePrompts.jsx";
 import AgentAvatarEditor from "./AgentAvatarEditor.jsx";
+import MobilePlasma from "./MobilePlasma.jsx";
 import "../ui/dalle3-studio.css";
 import "./style.css";
 
 const people = ["Aria", "Alex", "Astyria", "Aurelius"];
-const sections = [["chat","Czat"],["terminal","Terminal"],["agents","Agenci"],["desktops","Pulpity AI"],["tasks","Zadania"],["studio","DALL·E 3"],["integrations","Integracje AI"],["settings","Ustawienia"]];
+const sections = [["plasma","Pulpit Plasma"],["chat","Czat"],["terminal","Terminal"],["agents","Agenci"],["desktops","Pulpity AI"],["tasks","Zadania"],["studio","DALL·E 3"],["integrations","Integracje AI"],["settings","Ustawienia"]];
 function App() {
-  const [section,setSection] = useState("chat");
+  const [section,setSection] = useState("plasma");
   const [desktopUser,setDesktopUser] = useState("Aria");
   const [avatars,setAvatars] = useState({});
   const [agent,setAgent] = useState("Wszyscy");
@@ -62,6 +63,7 @@ function App() {
           <div className="toolbar-actions"><span className="connection">● Offline demo</span><button onClick={()=>setShowInfo(v=>!v)} aria-label="Pokaż lub ukryj informacje">ⓘ</button></div>
         </header>
         {showInfo&&<div className="notice">Interaktywny szkic interfejsu. Czat, terminal i agenci nie wykonują jeszcze rzeczywistych poleceń. Tapetę ustawisz w Ustawieniach.</div>}
+        {section==="plasma"&&<MobilePlasma onOpen={setSection} wallpaper={wallpaper} avatars={avatars}/>}
         {section==="chat"&&<section className="glass-card chat">
           <div className="panel-header"><div><h2>Wiadomości do agentów</h2><p>Wspólny kanał komunikacji</p></div><select aria-label="Odbiorca" value={agent} onChange={e=>setAgent(e.target.value)}>{["Wszyscy",...people].map(a=><option key={a}>{a}</option>)}</select></div>
           <div className="agent-strip">{people.map((p,i)=><button key={p} className={agent===p?"selected":""} onClick={()=>setAgent(p)}><span className={`avatar a${i}`}>{avatars[p]?<img src={avatars[p]} alt="" referrerPolicy="no-referrer"/>:p[0]}</span>{p}</button>)}</div>
