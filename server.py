@@ -18,6 +18,7 @@ from services.openai_agents import available as agents_available, run_agent
 from services.worker_registry import list_workers, add_worker, remove_worker
 from services.kernel_adaptation import snapshot as kernel_snapshot
 from services.resource_policy import recommend_limits
+from services.live_desktop import events as desktop_events, emit as desktop_emit
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 4 * 1024 * 1024
@@ -40,6 +41,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/desktop/events":
+            if not self._authorized():
+                return self._json(401, {"error": "Unauthorized"})
+            from urllib.parse import parse_qs
+            since = parse_qs(urlsplit(self.path).query).get("since", ["0"])[0]
+            try:
+                return self._json(200, {"events": desktop_events(since)})
+            except ValueError:
+                return self._json(400, {"error": "Invalid cursor"})
         if path == "/api/kernel/resources":
             if not self._authorized():
                 return self._json(401, {"error": "Unauthorized"})
@@ -75,7 +85,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
-        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision", "/api/agents/run", "/api/workers/create", "/api/workers/remove"):
+        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision", "/api/agents/run", "/api/workers/create", "/api/workers/remove", "/api/desktop/events"):
             return self._json(404, {"error": "Not found"})
         if not self._authorized():
             return self._json(401, {"error": "Unauthorized"})
@@ -88,6 +98,8 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict):
                 return self._json(400, {"error": "Expected JSON object"})
+            if path == "/api/desktop/events":
+                return self._json(201, {"id": desktop_emit(data.get("agent"), data.get("window"), data.get("action"))})
             if path == "/api/workers/create":
                 return self._json(201, {"id": add_worker(data.get("agent"), data.get("kind"))})
             if path == "/api/workers/remove":
