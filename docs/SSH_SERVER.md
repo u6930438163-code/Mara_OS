@@ -8,7 +8,16 @@ Mara_OS dostarcza instalator serwera OpenSSH uruchamianego automatycznie przy st
 sudo bash scripts/install-ssh-server.sh
 ```
 
-Skrypt instaluje `openssh-server`, dodaje `/etc/ssh/sshd_config.d/60-mara-os.conf` z `PermitRootLogin yes`, `PasswordAuthentication yes` i `AllowUsers root`, sprawdza konfigurację przez `sshd -t`, włącza usługę `ssh.service` i uruchamia ją. Nie modyfikuje reguł zapory ani routera.
+Skrypt instaluje `openssh-server`, dodaje `/etc/ssh/sshd_config.d/00-mara-os.conf` z `PermitRootLogin yes`, `PasswordAuthentication yes` i `AllowUsers root`, sprawdza składnię przez `sshd -t` oraz efektywne ustawienia przez `sshd -T`, włącza usługę `ssh.service` i uruchamia ją. Nie modyfikuje reguł zapory ani routera.
+
+## Kontrola konfiguracji
+
+```bash
+sudo bash scripts/check-ssh-config.sh
+sudo /usr/sbin/sshd -T -C user=root,host=localhost,addr=127.0.0.1 | grep -E '^(permitrootlogin|passwordauthentication|allowusers) '
+```
+
+Kontrola obejmuje kontekst połączenia lokalnego. Jeżeli serwer zawiera dyrektywy `Match` zależne od adresu IP, sprawdź również rzeczywisty adres klienta przed udostępnieniem usługi.
 
 ## Połączenie
 
