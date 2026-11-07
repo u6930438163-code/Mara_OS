@@ -8,11 +8,12 @@ import MobilePlasma from "./MobilePlasma.jsx";
 import RichText from "./RichText.jsx";
 import AgentActivity from "./AgentActivity.jsx";
 import WorkerManager from "./WorkerManager.jsx";
+import LiveDesktop from "./LiveDesktop.jsx";
 import "../ui/dalle3-studio.css";
 import "./style.css";
 
 const people = ["Aria", "Alex", "Astyria", "Aurelius"];
-const sections = [["plasma","Pulpit Plasma"],["chat","Czat"],["terminal","Terminal"],["agents","Agenci"],["desktops","Pulpity AI"],["tasks","Zadania"],["activity","Praca AI"],["workers","Workery"],["studio","DALL·E 3"],["integrations","Integracje AI"],["settings","Ustawienia"]];
+const sections = [["plasma","Pulpit Plasma"],["chat","Czat"],["terminal","Terminal"],["agents","Agenci"],["desktops","Pulpity AI"],["tasks","Zadania"],["activity","Praca AI"],["workers","Workery"],["live-desktop","Live AI Desktop"],["studio","DALL·E 3"],["integrations","Integracje AI"],["settings","Ustawienia"]];
 function App() {
   const [section,setSection] = useState("plasma");
   const [desktopUser,setDesktopUser] = useState("Aria");
@@ -77,6 +78,7 @@ function App() {
         {section==="agents"&&<section className="glass-card"><div className="panel-header"><div><h2>Czterej agenci AI</h2><p>Równorzędni współpracownicy — wizualny szkic dashboardów</p></div></div><div className="agent-grid">{people.map((p,i)=><div className="agent-card" key={p}><AgentAvatarEditor key={p} agent={p} initialUrl={avatars[p]||""} onSave={(name,url)=>setAvatars(v=>({...v,[name]:url}))}/><span className="pill">Niepołączony</span><p>Aktywność i historia będą dostępne po podłączeniu rzeczywistych logów.</p><button onClick={()=>{setAgent(p);setSection("chat")}}>Otwórz czat</button></div>)}</div></section>}
         {section==="desktops"&&<section className="glass-card"><div className="panel-header"><div><h2>Pulpity agentów — Mara_OS</h2><p>Każdy agent korzysta z tego samego motywu, menu i komponentów co właściciel.</p></div><span className="pill">Podgląd GUI</span></div><div className="agent-strip">{people.map((p,i)=><button key={p} className={desktopUser===p?"selected":""} onClick={()=>setDesktopUser(p)}><span className={`avatar a${i}`}>{avatars[p]?<img src={avatars[p]} alt=""/>:p[0]}</span>{p}</button>)}</div><div className="agent-desktop-preview"><div className="agent-desktop-top"><strong>Mara_OS / {desktopUser}</strong><span>Sesja nieuruchomiona</span></div><div className="agent-desktop-icons">{["Czat","Terminal","Pliki","Zadania","Real Vision","GitHub"].map(name=><button key={name} onClick={()=>{if(name==="Czat"){setAgent(desktopUser);setSection("chat")}else if(name==="Terminal"){setSection("terminal")}else if(name==="Zadania"){setSection("tasks")}else if(name==="GitHub"||name==="Real Vision"){setSection("integrations")}}}>{name}</button>)}</div><p>To wizualny podgląd wspólnego GUI, nie osobna aktywna sesja zdalna. Docelowo każdy agent otrzyma własną sesję i izolowane środowisko wykonawcze.</p></div></section>}
         {section==="workers"&&<WorkerManager/>}
+        {section==="live-desktop"&&<LiveDesktop/>}
         {section==="activity"&&<section className="glass-card"><AgentActivity/></section>}
         {section==="tasks"&&<section className="glass-card"><div className="panel-header"><div><h2>Menadżer zadań</h2><p>Lokalna demonstracja listy</p></div><span className="pill">{tasks.filter(t=>!t.done).length} oczekuje</span></div><form className="composer" onSubmit={addTask}><input aria-label="Opis zadania" value={task} onChange={e=>setTask(e.target.value)} placeholder="Dodaj nowe zadanie…"/><button>Dodaj +</button></form><div className="task-list">{tasks.map(t=><div className="task-row" key={t.id}><label><input type="checkbox" checked={t.done} onChange={()=>setTasks(v=>v.map(x=>x.id===t.id?{...x,done:!x.done}:x))}/><span className={t.done?"done":""}>{t.text}</span></label><button onClick={()=>setTasks(v=>v.filter(x=>x.id!==t.id))}>Usuń</button></div>)}</div></section>}
         {section==="studio"&&<section className="studio-layout"><div className="notice">DALL·E 3 — jedyny generator grafiki AI w Mara_OS. Do generowania potrzebny jest działający serwer i token sesji.</div><label className="setting">Token sesji (niezapisany)<input type="password" value={token} onChange={e=>setToken(e.target.value)} autoComplete="off"/></label><Dalle3Studio authToken={token}/></section>}
