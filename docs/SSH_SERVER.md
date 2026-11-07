@@ -8,7 +8,7 @@ Mara_OS dostarcza instalator serwera OpenSSH uruchamianego automatycznie przy st
 sudo bash scripts/install-ssh-server.sh
 ```
 
-Skrypt instaluje `openssh-server`, dodaje `/etc/ssh/sshd_config.d/60-mara-os.conf` z `PermitRootLogin no`, sprawdza konfigurację przez `sshd -t`, włącza usługę `ssh.service` i uruchamia ją. Nie modyfikuje reguł zapory ani routera.
+Skrypt instaluje `openssh-server`, dodaje `/etc/ssh/sshd_config.d/60-mara-os.conf` z `PermitRootLogin yes`, `PasswordAuthentication yes` i `AllowUsers root`, sprawdza konfigurację przez `sshd -t`, włącza usługę `ssh.service` i uruchamia ją. Nie modyfikuje reguł zapory ani routera.
 
 ## Połączenie
 
@@ -22,13 +22,13 @@ systemctl status ssh
 Z innego komputera:
 
 ```bash
-ssh NAZWA_UZYTKOWNIKA@IP_MARA_OS
+ssh root@IP_MARA_OS
 ```
 
-Przesyłanie plików: `sftp NAZWA_UZYTKOWNIKA@IP_MARA_OS`.
+Przesyłanie plików: `sftp root@IP_MARA_OS`.
 
 ## Bezpieczeństwo
 
-Domyślnie zdalne logowanie root jest wyłączone. Uwierzytelnianie zwykłych użytkowników zależy od konfiguracji systemowej; przed dostępem z internetu zaleca się klucze SSH, zaporę i VPN. Wyłączenie logowania hasłem powinno nastąpić dopiero po sprawdzeniu dostępu kluczem. Nie przyznajemy agentom AI automatycznych uprawnień SSH ani root.
+Na wyraźne życzenie właściciela SSH dopuszcza tylko użytkownika `root` z hasłem ustawianym interaktywnie poleceniem `passwd root` podczas instalacji. Hasło nie trafia do repozytorium. Jest to konfiguracja podwyższonego ryzyka: zalecane są VPN, ograniczenie adresów IP zaporą oraz ochrona przed próbami logowania. Nie przyznajemy agentom AI automatycznych uprawnień SSH ani root.
 
 **Stan:** pliki instalacyjne są w repozytorium. Na rzeczywistym Debianie 13 instalator musi zostać uruchomiony; nie potwierdzono aktywnej usługi SSH.
