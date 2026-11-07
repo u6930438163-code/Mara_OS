@@ -16,7 +16,7 @@ from services.ai import ask_agent, analyze_image, AIError
 from services.github_read import repo_info, GitHubError
 
 ROOT = Path(__file__).resolve().parent
-MAX_BODY = 8192
+MAX_BODY = 4 * 1024 * 1024
 TASK_DB = ROOT / "data" / "tasks.sqlite3"
 
 class Handler(BaseHTTPRequestHandler):
