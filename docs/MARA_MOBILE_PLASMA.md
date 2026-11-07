@@ -1,4 +1,7 @@
-# Mara_OS — Bastilla_1_2 layout + full KDE Plasma 6 target
+# Mara_OS — Bastilla_1_2 layout + KDE Plasma 6.8.2 target
+
+## Version decision
+Target upstream KDE Plasma version: **6.8.2** (owner selection, 2026-11-07). This is a target, not an installed or validated package. Debian 13 stock repositories may provide an older Plasma release; do not assume 6.8.2 can be installed via standard apt. Validate package availability, compatibility and device support before any deployment. Do not silently substitute an older version.
 
 ## Decision
 Target phones: Huawei P Smart 2019 and Samsung Galaxy A13 SM-A135F (model to confirm). User wants the **real, complete KDE Plasma**, with Mara_OS's Bastilla_1_2-inspired look, developed through Google AI Studio.
