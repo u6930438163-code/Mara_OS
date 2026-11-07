@@ -24,7 +24,7 @@ def _request(messages, *, vision=False):
     try:
         with urllib.request.urlopen(req, timeout=60) as res:
             data = json.load(res)
-        return {"model": model, "text": data["choices"][0]["message"]["content"], "provider": "openai"}
+        return {"model": model, "text": data["choices"][0]["message"]["content"], "provider": "openai", "provider_name": "OpenAI API", "fallback": False, "source": "api"}
     except (urllib.error.HTTPError, urllib.error.URLError, KeyError, IndexError, ValueError) as exc:
         raise AIError("AI provider request failed") from exc
 
@@ -46,7 +46,7 @@ def _ollama(messages, *, vision=False):
     try:
         with urllib.request.urlopen(req, timeout=180) as response:
             data = json.load(response)
-        return {"model": model, "text": data["message"]["content"], "provider": "ollama"}
+        return {"model": model, "text": data["message"]["content"], "provider": "ollama", "provider_name": "Ollama (local)", "fallback": False, "source": "local"}
     except (urllib.error.HTTPError, urllib.error.URLError, KeyError, TypeError, ValueError, TimeoutError) as exc:
         raise AIError("Ollama request failed") from exc
 
@@ -77,7 +77,7 @@ def _gemini(messages, *, vision=False):
         text = "".join(p.get("text", "") for p in data["candidates"][0]["content"]["parts"])
         if not text:
             raise AIError("Gemini returned no text")
-        return {"model": model, "text": text, "provider": "gemini", "fallback": True}
+        return {"model": model, "text": text, "provider": "gemini", "provider_name": "Google Gemini API", "fallback": True, "source": "api", "fallback_from": "ollama"}
     except (urllib.error.HTTPError, urllib.error.URLError, KeyError, IndexError, TypeError, ValueError, TimeoutError) as exc:
         raise AIError("Gemini fallback request failed") from exc
 
