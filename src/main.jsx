@@ -11,6 +11,7 @@ import WorkerManager from "./WorkerManager.jsx";
 import LiveDesktop from "./LiveDesktop.jsx";
 import RealVision from "./RealVision.jsx";
 import PythonEditor from "./PythonEditor.jsx";
+import useGlobalSync from "./useGlobalSync.js";
 import "../ui/dalle3-studio.css";
 import "./style.css";
 
@@ -34,11 +35,24 @@ function App() {
   const [token,setToken] = useState("");
   const [sidebar,setSidebar] = useState(false);
   const [showInfo,setShowInfo] = useState(true);
-  function send(e) {
+  const {status:syncStatus,lastEvent:syncLastEvent}=useGlobalSync(token, events=>{
+    for(const event of events){
+      if(event.topic==="chat"&&event.kind==="message"&&event.payload?.text){
+        const m=event.payload;
+        setMessages(previous=>previous.some(x=>x.syncId===event.id)?previous:[...previous,{who:m.who||"Użytkownik",to:m.to||"Wszyscy",text:m.text,time:new Date(event.created_at*1000).toLocaleTimeString("pl-PL"),syncId:event.id}]);
+      }
+    }
+  });
+  async function send(e) {
     e.preventDefault();
     if (!draft.trim()) return;
-    setMessages(m=>[...m,{who:"Ty",to:agent,text:draft.trim(),time:new Date().toLocaleTimeString("pl-PL")}]);
-    setDraft("");
+    const text=draft.trim();
+    if(!token){setMessages(m=>[...m,{who:"Ty",to:agent,text,time:new Date().toLocaleTimeString("pl-PL")}]);setDraft("");return;}
+    try {
+      const r=await fetch("/api/sync/events",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify({topic:"chat",kind:"message",payload:{who:"Ty",to:agent,text}})});
+      if(!r.ok)throw new Error("HTTP "+r.status);
+      setDraft("");
+    }catch(err){setMessages(m=>[...m,{who:"System",to:"Ty",text:"Nie udało się zsynchronizować wiadomości: "+err.message,time:new Date().toLocaleTimeString("pl-PL")}]);}
   }
   function command(e) {
     e.preventDefault();
@@ -66,7 +80,7 @@ function App() {
         <header className="toolbar">
           <button className="mobile-menu" onClick={()=>setSidebar(s=>!s)} aria-label="Pokaż menu">☰</button>
           <div><strong>{sections.find(s=>s[0]===section)?.[1]}</strong><small>Mara_OS / Panel główny</small></div>
-          <div className="toolbar-actions"><span className="connection">● Offline demo</span><button onClick={()=>setShowInfo(v=>!v)} aria-label="Pokaż lub ukryj informacje">ⓘ</button></div>
+          <div className="toolbar-actions"><span className="connection" title={"Ostatnie zdarzenie #"+syncLastEvent}>● Sync: {syncStatus}</span><button onClick={()=>setShowInfo(v=>!v)} aria-label="Pokaż lub ukryj informacje">ⓘ</button></div>
         </header>
         {showInfo&&<div className="notice">Interaktywny szkic interfejsu. Czat, terminal i agenci nie wykonują jeszcze rzeczywistych poleceń. Tapetę ustawisz w Ustawieniach.</div>}
         {section==="plasma"&&<MobilePlasma onOpen={setSection} wallpaper={wallpaper} avatars={avatars}/>}
