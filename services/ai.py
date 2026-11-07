@@ -18,7 +18,7 @@ def _request(messages, *, vision=False):
     if not key:
         raise AIError("OPENAI_API_KEY is not configured")
     model = os.environ.get("MARA_VISION_MODEL" if vision else "MARA_TEXT_MODEL", "gpt-4o-mini")
-    payload = json.dumps({"model": model, "messages": messages, "max_tokens": 800}).encode()
+    payload = json.dumps({"model": model, "messages": messages, "max_tokens": int(os.environ.get("MARA_MAX_OUTPUT_TOKENS", "8192"))}).encode()
     req = urllib.request.Request(API, data=payload, method="POST", headers={
         "Authorization": "Bearer " + key, "Content-Type": "application/json"})
     try:
@@ -67,7 +67,7 @@ def _gemini(messages, *, vision=False):
         else:
             parts.append({"text": str(content)})
     payload = json.dumps({"contents": [{"role": "user", "parts": parts}],
-                          "generationConfig": {"maxOutputTokens": 800}}).encode()
+                          "generationConfig": {"maxOutputTokens": int(os.environ.get("MARA_MAX_OUTPUT_TOKENS", "8192"))}}).encode()
     url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent"
     req = urllib.request.Request(url, data=payload, method="POST",
                                  headers={"Content-Type": "application/json", "x-goog-api-key": key})
@@ -92,7 +92,7 @@ def _with_fallback(messages, *, vision=False, provider="ollama"):
         return _gemini(messages, vision=vision)
 
 def ask_agent(agent, message):
-    if agent not in AGENTS or not isinstance(message, str) or not 1 <= len(message.strip()) <= 8000:
+    if agent not in AGENTS or not isinstance(message, str) or not 1 <= len(message.strip()) <= 100000:
         raise ValueError("Invalid agent or message")
     provider = os.environ.get("MARA_TEXT_PROVIDER", "ollama").lower()
     if provider not in ("openai", "ollama"):
