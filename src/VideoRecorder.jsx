@@ -1,13 +1,14 @@
 import React, {useEffect,useRef,useState} from "react";
 
 /** User-controlled, local recording. No recording is sent to any server. */
-export default function VideoRecorder() {
+export default function VideoRecorder({onRecordingReady}) {
   const [source,setSource]=useState("screen");
   const [recording,setRecording]=useState(false);
   const [seconds,setSeconds]=useState(0);
   const [error,setError]=useState("");
   const [videoUrl,setVideoUrl]=useState("");
   const [format,setFormat]=useState("");
+  const [recordedFile,setRecordedFile]=useState(null);
   const recorder=useRef(null),stream=useRef(null),chunks=useRef([]),timer=useRef(null),url=useRef("");
   const stop=()=>{if(recorder.current?.state==="recording") recorder.current.stop();stream.current?.getTracks().forEach(t=>t.stop());clearInterval(timer.current);};
   useEffect(()=>()=>{stop();if(url.current) URL.revokeObjectURL(url.current);},[]);
@@ -24,13 +25,13 @@ export default function VideoRecorder() {
       const mime=types.find(t=>MediaRecorder.isTypeSupported(t));
       if (!mime) throw new Error("Brak obsługi nagrywania wideo.");
       if (url.current) URL.revokeObjectURL(url.current);
-      url.current="";setVideoUrl("");setFormat(mime);
+      url.current="";setVideoUrl("");setRecordedFile(null);setFormat(mime);
       chunks.current=[];
       const rec=new MediaRecorder(media,{mimeType:mime,videoBitsPerSecond:1800000});
       recorder.current=rec;
       rec.ondataavailable=e=>{if(e.data.size) chunks.current.push(e.data);};
       rec.onstop=()=>{
-        if(chunks.current.length){url.current=URL.createObjectURL(new Blob(chunks.current,{type:mime}));setVideoUrl(url.current);}
+        if(chunks.current.length){const blob=new Blob(chunks.current,{type:mime});url.current=URL.createObjectURL(blob);setVideoUrl(url.current);setRecordedFile(new File([blob],"mara-os-nagranie."+(mime.includes("mp4")?"mp4":"webm"),{type:mime}));}
         setRecording(false);media.getTracks().forEach(t=>t.stop());clearInterval(timer.current);
       };
       rec.onerror=()=>{setError("Wystąpił błąd nagrywania.");stop();};
@@ -49,7 +50,7 @@ export default function VideoRecorder() {
       <strong aria-live="polite">{String(Math.floor(seconds/60)).padStart(2,"0")}:{String(seconds%60).padStart(2,"0")}</strong>
     </div>
     {error&&<p role="alert">{error}</p>}
-    {videoUrl&&<div><video src={videoUrl} controls playsInline style={{maxWidth:"100%",maxHeight:320}}/><p><a href={videoUrl} download={"mara-os-nagranie."+ (format.includes("mp4")?"mp4":"webm")}>Pobierz nagranie</a></p></div>}
+    {videoUrl&&<div><video src={videoUrl} controls playsInline style={{maxWidth:"100%",maxHeight:320}}/><p><a href={videoUrl} download={"mara-os-nagranie."+ (format.includes("mp4")?"mp4":"webm")}>Pobierz nagranie</a></p>{recordedFile&&onRecordingReady&&<button type="button" onClick={()=>onRecordingReady(recordedFile)}>Przekaż nagranie do analizy Vision</button>}</div>}
     <p style={{fontSize:12,opacity:.7}}>Nagrywanie wymaga zgody użytkownika. Wideo pozostaje w przeglądarce i nie jest automatycznie wysyłane do agentów ani na serwer. Dźwięk nie jest nagrywany.</p>
   </section>;
 }
