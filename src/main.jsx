@@ -23,7 +23,8 @@ function App() {
   const [desktopUser,setDesktopUser] = useState("Aria");
   const [avatars,setAvatars] = useState({});
   const [agent,setAgent] = useState("Wszyscy");
-  const [engine,setEngine] = useState("OpenAI API");
+  const [engine,setEngine] = useState("Auto: Ollama → fallback");
+  const [chatBusy,setChatBusy] = useState(false);
   const [draft,setDraft] = useState("");
   const [messages,setMessages] = useState([]);
   const [terminal,setTerminal] = useState("help");
@@ -53,7 +54,17 @@ function App() {
       const r=await fetch("/api/sync/events",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify({topic:"chat",kind:"message",payload:{who:"Ty",to:agent,text}})});
       if(!r.ok)throw new Error("HTTP "+r.status);
       setDraft("");
-    }catch(err){setMessages(m=>[...m,{who:"System",to:"Ty",text:"Nie udało się zsynchronizować wiadomości: "+err.message,time:new Date().toLocaleTimeString("pl-PL")}]);}
+      setChatBusy(true);
+      for(const name of (agent==="Wszyscy"?people:[agent])){
+        try{
+          const answer=await fetch("/api/ai/chat",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify({agent:name,message:text})});
+          if(!answer.ok)throw new Error("HTTP "+answer.status);
+          const result=await answer.json();
+          setMessages(m=>[...m,{who:name,to:"Ty",text:result.text||"",provider:result.provider_name||result.provider,model:result.model,source:result.source,fallback:result.fallback,time:new Date().toLocaleTimeString("pl-PL")}]);
+        }catch(error){setMessages(m=>[...m,{who:"System",to:name,text:"Nie udało się uzyskać odpowiedzi AI: "+error.message,time:new Date().toLocaleTimeString("pl-PL")}]);}
+      }
+      setChatBusy(false);
+    }catch(err){setChatBusy(false);setMessages(m=>[...m,{who:"System",to:"Ty",text:"Nie udało się zsynchronizować wiadomości: "+err.message,time:new Date().toLocaleTimeString("pl-PL")}]);}
   }
   function command(e) {
     e.preventDefault();
@@ -88,8 +99,8 @@ function App() {
         {section==="chat"&&<section className="glass-card chat">
           <div className="panel-header"><div><h2>Wiadomości do agentów</h2><p>Wspólny kanał komunikacji</p></div><select aria-label="Odbiorca" value={agent} onChange={e=>setAgent(e.target.value)}>{["Wszyscy",...people].map(a=><option key={a}>{a}</option>)}</select></div>
           <div className="agent-strip">{people.map((p,i)=><button key={p} className={agent===p?"selected":""} onClick={()=>setAgent(p)}><span className={`avatar a${i}`}>{avatars[p]?<img src={avatars[p]} alt="" referrerPolicy="no-referrer"/>:p[0]}</span>{p}</button>)}</div>
-          <label className="chat-token">Token sesji API <input type="password" autoComplete="off" value={token} onChange={e=>setToken(e.target.value)} placeholder="MARA_SESSION_TOKEN"/></label><ChatDallePrompts authToken={token} onImage={image=>setMessages(m=>[...m,image])}/><div className="chat-feed" aria-live="polite">{messages.length===0?<div className="empty"><span className="big-m">M</span><h3>Witaj w Mara_OS</h3><p>Tu pojawią się wiadomości i odpowiedzi agentów po podłączeniu backendu.</p></div>:messages.map((m,i)=><article key={i} className="message"><div><strong>{m.who} → {m.to}</strong><small>{m.time}</small></div><RichText text={m.text}/>{m.image&&<img src={m.image} alt={m.text} style={{maxWidth:"100%",maxHeight:440,borderRadius:12}}/>}<div className="reactions"><button onClick={e=>e.currentTarget.classList.toggle("reacted")} aria-label="Lubię">👍</button><button onClick={e=>e.currentTarget.classList.toggle("reacted")} aria-label="Nie lubię">👎</button></div></article>)}</div>
-          <form className="composer" onSubmit={send}><select aria-label="Silnik AI" value={engine} onChange={e=>setEngine(e.target.value)}><option>OpenAI API</option><option>Ollama</option></select><input aria-label="Treść wiadomości" value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Napisz do agentów…"/><button type="submit">Wyślij ↑</button></form>
+          <label className="chat-token">Token sesji API <input type="password" autoComplete="off" value={token} onChange={e=>setToken(e.target.value)} placeholder="MARA_SESSION_TOKEN"/></label><ChatDallePrompts authToken={token} onImage={image=>setMessages(m=>[...m,image])}/><div className="chat-feed" aria-live="polite">{messages.length===0?<div className="empty"><span className="big-m">M</span><h3>Witaj w Mara_OS</h3><p>Tu pojawią się wiadomości i odpowiedzi agentów po podłączeniu backendu.</p></div>:messages.map((m,i)=><article key={i} className="message"><div><strong>{m.who} → {m.to}</strong><small>{m.time}</small></div>{m.provider&&<small className="pill" title="Rzeczywisty dostawca odpowiedzi">Silnik: {m.provider} · Model: {m.model||"nieznany"} · {m.source==="local"?"Lokalnie":"API"}{m.fallback?" · FALLBACK":""}</small>}<RichText text={m.text}/>{m.image&&<img src={m.image} alt={m.text} style={{maxWidth:"100%",maxHeight:440,borderRadius:12}}/>}<div className="reactions"><button onClick={e=>e.currentTarget.classList.toggle("reacted")} aria-label="Lubię">👍</button><button onClick={e=>e.currentTarget.classList.toggle("reacted")} aria-label="Nie lubię">👎</button></div></article>)}</div>
+          <form className="composer" onSubmit={send}><select aria-label="Silnik AI" value={engine} onChange={e=>setEngine(e.target.value)}><option>Auto: Ollama → fallback</option></select><input aria-label="Treść wiadomości" value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Napisz do agentów…"/><button type="submit" disabled={chatBusy}>{chatBusy?"AI odpowiada…":"Wyślij ↑"}</button></form>
         </section>}
         {section==="terminal"&&<section className="glass-card"><div className="panel-header"><div><h2>Terminal</h2><p>Podgląd CLI — bez wykonywania komend systemowych</p></div><span className="pill">LOCAL DEMO</span></div><div className="terminal-output"><p>$ Mara_OS terminal · tryb demonstracyjny</p>{history.map((h,i)=><div key={i}><p><b>$</b> {h.value}</p><p className="output">{h.output}</p></div>)}</div><form className="composer" onSubmit={command}><span>$</span><input aria-label="Polecenie terminala" value={terminal} onChange={e=>setTerminal(e.target.value)} placeholder="help"/><button>Uruchom</button></form></section>}
         {section==="agents"&&<section className="glass-card"><div className="panel-header"><div><h2>Czterej agenci AI</h2><p>Równorzędni współpracownicy — wizualny szkic dashboardów</p></div></div><div className="agent-grid">{people.map((p,i)=><div className="agent-card" key={p}><AgentAvatarEditor key={p} agent={p} initialUrl={avatars[p]||""} onSave={(name,url)=>setAvatars(v=>({...v,[name]:url}))}/><span className="pill">Niepołączony</span><p>Aktywność i historia będą dostępne po podłączeniu rzeczywistych logów.</p><button onClick={()=>{setAgent(p);setSection("chat")}}>Otwórz czat</button></div>)}</div></section>}
