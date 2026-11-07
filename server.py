@@ -21,6 +21,7 @@ from services.resource_policy import recommend_limits
 from services.live_desktop import events as desktop_events, emit as desktop_emit
 from services.agent_workers import enqueue as enqueue_worker_job, get_jobs as worker_jobs
 from services.desktop_planner import plan as desktop_plan
+from services.kwin_bridge import native_plan as kwin_native_plan
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 4 * 1024 * 1024
@@ -43,6 +44,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/desktop/kwin-plan":
+            if not self._authorized():
+                return self._json(401, {"error": "Unauthorized"})
+            from urllib.parse import parse_qs
+            params = parse_qs(urlsplit(self.path).query)
+            try:
+                return self._json(200, kwin_native_plan(params.get("activity", ["idle"])[0], params.get("pinned", []), params.get("managed", [])))
+            except ValueError:
+                return self._json(400, {"error": "Invalid KWin plan parameters"})
         if path == "/api/desktop/layout":
             if not self._authorized():
                 return self._json(401, {"error": "Unauthorized"})
