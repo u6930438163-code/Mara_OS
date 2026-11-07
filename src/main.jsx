@@ -10,13 +10,14 @@ import AgentActivity from "./AgentActivity.jsx";
 import WorkerManager from "./WorkerManager.jsx";
 import LiveDesktop from "./LiveDesktop.jsx";
 import RealVision from "./RealVision.jsx";
+import OllamaManager from "./OllamaManager.jsx";
 import PythonEditor from "./PythonEditor.jsx";
 import useGlobalSync from "./useGlobalSync.js";
 import "../ui/dalle3-studio.css";
 import "./style.css";
 
 const people = ["Aria", "Alex", "Astyria", "Aurelius"];
-const sections = [["plasma","Pulpit Plasma"],["chat","Czat"],["terminal","Terminal"],["python","Python Console"],["agents","Agenci"],["desktops","Pulpity AI"],["tasks","Zadania"],["activity","Praca AI"],["workers","Workery"],["live-desktop","Live AI Desktop"],["vision","Real Vision"],["studio","DALL·E 3"],["integrations","Integracje AI"],["settings","Ustawienia"]];
+const sections = [["plasma","Pulpit Plasma"],["chat","Czat"],["terminal","Terminal"],["python","Python Console"],["agents","Agenci"],["desktops","Pulpity AI"],["tasks","Zadania"],["activity","Praca AI"],["workers","Workery"],["live-desktop","Live AI Desktop"],["vision","Real Vision"],["studio","DALL·E 3"],["integrations","Integracje AI"],["ollama","Ollama i modele"],["settings","Ustawienia"]];
 function App() {
   const [section,setSection] = useState("plasma");
   const [desktopUser,setDesktopUser] = useState("Aria");
@@ -94,6 +95,7 @@ function App() {
         {section==="agents"&&<section className="glass-card"><div className="panel-header"><div><h2>Czterej agenci AI</h2><p>Równorzędni współpracownicy — wizualny szkic dashboardów</p></div></div><div className="agent-grid">{people.map((p,i)=><div className="agent-card" key={p}><AgentAvatarEditor key={p} agent={p} initialUrl={avatars[p]||""} onSave={(name,url)=>setAvatars(v=>({...v,[name]:url}))}/><span className="pill">Niepołączony</span><p>Aktywność i historia będą dostępne po podłączeniu rzeczywistych logów.</p><button onClick={()=>{setAgent(p);setSection("chat")}}>Otwórz czat</button></div>)}</div></section>}
         {section==="desktops"&&<section className="glass-card"><div className="panel-header"><div><h2>Pulpity agentów — Mara_OS</h2><p>Każdy agent korzysta z tego samego motywu, menu i komponentów co właściciel.</p></div><span className="pill">Podgląd GUI</span></div><div className="agent-strip">{people.map((p,i)=><button key={p} className={desktopUser===p?"selected":""} onClick={()=>setDesktopUser(p)}><span className={`avatar a${i}`}>{avatars[p]?<img src={avatars[p]} alt=""/>:p[0]}</span>{p}</button>)}</div><div className="agent-desktop-preview"><div className="agent-desktop-top"><strong>Mara_OS / {desktopUser}</strong><span>Sesja nieuruchomiona</span></div><div className="agent-desktop-icons">{["Czat","Terminal","Pliki","Zadania","Real Vision","GitHub"].map(name=><button key={name} onClick={()=>{if(name==="Czat"){setAgent(desktopUser);setSection("chat")}else if(name==="Terminal"){setSection("terminal")}else if(name==="Zadania"){setSection("tasks")}else if(name==="Real Vision"){setSection("vision")}else if(name==="GitHub"){setSection("integrations")}}}>{name}</button>)}</div><p>To wizualny podgląd wspólnego GUI, nie osobna aktywna sesja zdalna. Docelowo każdy agent otrzyma własną sesję i izolowane środowisko wykonawcze.</p></div></section>}
         {section==="vision"&&<RealVision authToken={token}/>}
+        {section==="ollama"&&<OllamaManager authToken={token}/>}
         {section==="python"&&<PythonEditor authToken={token}/>}
         {section==="workers"&&<WorkerManager/>}
         {section==="live-desktop"&&<LiveDesktop/>}
