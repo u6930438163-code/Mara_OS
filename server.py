@@ -14,6 +14,7 @@ from services.dalle3 import generate_image, ImageGenerationError
 from services.tasks import create_task, list_tasks
 from services.ai import ask_agent, analyze_image, AIError
 from services.github_read import repo_info, GitHubError
+from services.openai_agents import available as agents_available, run_agent
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 4 * 1024 * 1024
@@ -36,6 +37,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/agents/status":
+            if not self._authorized():
+                return self._json(401, {"error": "Unauthorized"})
+            return self._json(200, {"agents": ["Aria", "Alex", "Astyria", "Aurelius"], "sdk_available": agents_available(), "workers": False})
         if path == "/api/github/repo":
             if not self._authorized():
                 return self._json(401, {"error": "Unauthorized"})
@@ -58,7 +63,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
-        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision"):
+        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision", "/api/agents/run"):
             return self._json(404, {"error": "Not found"})
         if not self._authorized():
             return self._json(401, {"error": "Unauthorized"})
@@ -71,6 +76,13 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict):
                 return self._json(400, {"error": "Expected JSON object"})
+            if path == "/api/agents/run":
+                if length > 16384:
+                    return self._json(413, {"error": "Agent request too large"})
+                try:
+                    return self._json(200, run_agent(data.get("agent", ""), data.get("message", "")))
+                except RuntimeError:
+                    return self._json(503, {"error": "Agents SDK unavailable or not configured"})
             if path == "/api/ai/chat":
                 return self._json(200, ask_agent(data.get("agent", ""), data.get("message", "")))
             if path == "/api/ai/vision":
