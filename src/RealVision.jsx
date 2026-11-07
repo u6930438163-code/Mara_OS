@@ -12,6 +12,17 @@ export default function RealVision({authToken=""}) {
   const [agent,setAgent]=useState("Aria");
   const [history,setHistory]=useState([]);
   const [persist,setPersist]=useState(false);
+  const [dispatch,setDispatch]=useState(false);
+  const [jobId,setJobId]=useState(null);
+  const [jobStatus,setJobStatus]=useState("");
+  async function refreshJob() {
+    if (!authToken || !jobId) return;
+    try {const r=await fetch("/api/worker-jobs",{headers:{"Authorization":"Bearer "+authToken}});
+      if (!r.ok) throw new Error("Nie można sprawdzić workera.");
+      const data=await r.json();const job=data.jobs.find(j=>j.id===jobId);
+      setJobStatus(job?(job.state==="done"?("Zakończono: "+job.result):job.state==="failed"?("Błąd: "+job.result):job.state):"Zadanie nie jest już na liście.");
+    } catch(err) {setError(err.message);}
+  }
   async function loadHistory() {
     if (!authToken) return;
     try {const response=await fetch("/api/vision/history",{headers:{"Authorization":"Bearer "+authToken}});
@@ -103,7 +114,7 @@ export default function RealVision({authToken=""}) {
   }
   async function analyze() {
     if (!image || !authToken || busy) return;
-    setBusy(true);setError("");setResult("");
+    setBusy(true);setError("");setResult("");setJobId(null);setJobStatus("");
     try {
       const frames=videoFrames.length?videoFrames:[{time:null,image}];
       const reports=[];
@@ -120,6 +131,12 @@ export default function RealVision({authToken=""}) {
       }
       const text=reports.join("\n\n");
       setResult(text);
+      if (dispatch) {
+        setProgress("Przekazywanie agentowi…");
+        const r=await fetch("/api/worker-jobs",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken},body:JSON.stringify({agent,kind:"vision_report",payload:("Przeanalizuj raport Real Vision i zaproponuj dalsze działania. Nie twierdź, że wykonałeś działania w systemie. Pytanie: "+question+"\\n"+text).slice(0,8000)})});
+        if (!r.ok) throw new Error("Analiza ukończona, ale nie udało się dodać zadania workera.");
+        const job=await r.json();setJobId(job.id);setJobStatus("Zadanie w kolejce");
+      }
       setHistory(h=>[{id:Date.now(),agent,date:new Date().toLocaleString("pl-PL"),source:videoFrames.length?"Wideo":filename||"Obraz",text},...h].slice(0,20));
     } catch(err) {setError(err.message || "Nie udało się połączyć z Vision.");}
     finally {setBusy(false);setProgress("");}
@@ -136,13 +153,15 @@ export default function RealVision({authToken=""}) {
     {image&&<img src={image} alt="Obraz wybrany do analizy" style={{maxWidth:"100%",maxHeight:220,objectFit:"contain",borderRadius:8}}/>}
     <label>Agent <select value={agent} onChange={e=>setAgent(e.target.value)}>{["Aria","Alex","Astyria","Aurelius"].map(a=><option key={a}>{a}</option>)}</select></label>
     <label style={{display:"block"}}>Pytanie do Vision <input style={{width:"100%",boxSizing:"border-box"}} value={question} maxLength={4000} onChange={e=>setQuestion(e.target.value)}/></label>
+    <label><input type="checkbox" checked={dispatch} onChange={e=>setDispatch(e.target.checked)}/> Przekaż wynik wybranemu agentowi (worker w tle)</label>
     <label><input type="checkbox" checked={persist} onChange={e=>setPersist(e.target.checked)}/> Zapisuj wyniki na serwerze (bez obrazów)</label>
     {!authToken&&<p role="status">Ustaw token sesji w zakładce Czat, aby wysłać obraz.</p>}
     <button type="button" disabled={!image||!question.trim()||!authToken||busy} onClick={analyze}>{busy?(progress||"Analizowanie…"):"Analizuj obraz"}</button>
+    {jobId!==null&&<div role="status">Zadanie #{jobId}: {jobStatus} <button type="button" disabled={!authToken||busy} onClick={refreshJob}>Odśwież status</button></div>}
     {error&&<p role="alert">{error}</p>}
     {result&&<div aria-live="polite" style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}><strong>Wynik analizy</strong><p>{result}</p></div>}
     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button type="button" disabled={!authToken||busy} onClick={loadHistory}>Wczytaj historię</button><button type="button" disabled={!authToken||busy} onClick={clearHistory}>Usuń historię serwera</button></div>
     {history.length>0&&<details><summary>Historia analiz ({history.length}) — tylko w bieżącej sesji</summary>{history.map(h=><article key={h.id} style={{padding:8,borderBottom:"1px solid #7775"}}><strong>{h.agent} · {h.date} · {h.source}</strong><p style={{whiteSpace:"pre-wrap"}}>{h.text}</p></article>)}</details>}
-    <p style={{fontSize:12,opacity:.7}}>Przechwytywana jest pojedyncza klatka po udzieleniu zgody przeglądarce. Strumień kamery lub ekranu jest następnie zatrzymywany. Wysyłanie do modelu następuje dopiero po kliknięciu Analizuj; Wideo jest analizowane jako trzy klatki (10%, 50%, 90% czasu), nie jako strumień na żywo. Historia może być opcjonalnie zapisana w lokalnej bazie serwera (bez obrazów). Wybór agenta oznacza podpis analizy, nie uruchomienie niezależnego workera.</p>
+    <p style={{fontSize:12,opacity:.7}}>Przechwytywana jest pojedyncza klatka po udzieleniu zgody przeglądarce. Strumień kamery lub ekranu jest następnie zatrzymywany. Wysyłanie do modelu następuje dopiero po kliknięciu Analizuj; Wideo jest analizowane jako trzy klatki (10%, 50%, 90% czasu), nie jako strumień na żywo. Historia może być opcjonalnie zapisana w lokalnej bazie serwera (bez obrazów). Wybór agenta określa odbiorcę raportu; po zaznaczeniu opcji worker dostaje wyłącznie tekst analizy. Worker musi być osobno uruchomiony, aby wykonać zadanie.</p>
   </section>;
 }
