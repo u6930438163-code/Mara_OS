@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from services.dalle3 import generate_image, ImageGenerationError
 from services.tasks import create_task, list_tasks
 from services.ai import ask_agent, analyze_image, AIError
-from services.ollama_manager import status as ollama_status
+from services.ollama_manager import status as ollama_status, unload_model, delete_model
 from services.python_syntax import check_source
 from services.global_sync import publish as sync_publish, events as sync_events
 from services.vision_history import save as save_vision, list_recent as vision_history, delete_all as clear_vision_history
@@ -131,7 +131,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
-        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision", "/api/agents/run", "/api/workers/create", "/api/workers/remove", "/api/desktop/events", "/api/worker-jobs", "/api/vision/history/clear", "/api/python/compile", "/api/sync/events"):
+        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision", "/api/agents/run", "/api/workers/create", "/api/workers/remove", "/api/desktop/events", "/api/worker-jobs", "/api/vision/history/clear", "/api/python/compile", "/api/sync/events", "/api/ollama/model/unload", "/api/ollama/model/delete"):
             return self._json(404, {"error": "Not found"})
         if not self._authorized():
             return self._json(401, {"error": "Unauthorized"})
@@ -144,6 +144,13 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict):
                 return self._json(400, {"error": "Expected JSON object"})
+            if path in ("/api/ollama/model/unload", "/api/ollama/model/delete"):
+                name = data.get("model")
+                if path.endswith("/delete"):
+                    if data.get("confirm") != name:
+                        return self._json(400, {"error": "Model name confirmation required"})
+                    return self._json(200, delete_model(name))
+                return self._json(200, unload_model(name))
             if path == "/api/sync/events":
                 return self._json(201, {"id":sync_publish(data.get("topic"),data.get("kind"),data.get("payload"))})
             if path == "/api/python/compile":
@@ -185,6 +192,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, result)
         except (ValueError, TypeError, json.JSONDecodeError):
             return self._json(400, {"error": "Invalid image request"})
+        except RuntimeError as exc:
+            self.log_error("Backend operation failed: %s", type(exc).__name__)
+            return self._json(502, {"error": "Backend operation unavailable"})
         except AIError:
             return self._json(502, {"error": "AI service unavailable"})
         except ImageGenerationError as exc:
