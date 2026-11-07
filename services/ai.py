@@ -40,11 +40,12 @@ def _ollama(messages, *, vision=False):
         raise AIError("Invalid Ollama endpoint") from exc
     model = os.environ.get("MARA_OLLAMA_VISION_MODEL" if vision else "MARA_OLLAMA_TEXT_MODEL",
                            "llama3.2-vision:11b" if vision else "hf.co/mradermacher/Floppa-12B-Gemma3-Uncensored-GGUF:Q8_0")
-    payload = json.dumps({"model": model, "messages": messages, "stream": False}).encode()
+    payload = json.dumps({"model": model, "messages": messages, "stream": False,
+                          "options": {"num_predict": int(os.environ.get("MARA_MAX_OUTPUT_TOKENS", "8192"))}}).encode()
     req = urllib.request.Request(base.rstrip("/") + "/api/chat", data=payload, method="POST",
                                  headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=180) as response:
+        with urllib.request.urlopen(req, timeout=int(os.environ.get("MARA_OLLAMA_TIMEOUT", "600"))) as response:
             data = json.load(response)
         return {"model": model, "text": data["message"]["content"], "provider": "ollama", "provider_name": "Ollama (local)", "fallback": False, "source": "local"}
     except (urllib.error.HTTPError, urllib.error.URLError, KeyError, TypeError, ValueError, TimeoutError) as exc:
