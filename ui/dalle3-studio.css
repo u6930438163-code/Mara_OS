@@ -1,0 +1,17 @@
+:root { --mara-violet:#a855f7; --mara-pink:#e879f9; }
+.mara-studio { color:#f4eaff; background:rgba(18,10,32,.72); backdrop-filter:blur(18px); border:1px solid rgba(216,180,254,.38); border-radius:22px; padding:clamp(16px,3vw,28px); max-width:760px; box-shadow:0 14px 45px #0b051d66; }
+.mara-studio header { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.mara-studio h2 { font-size:1.2rem; margin:0 0 18px; }
+.mara-studio header span { color:#e9b6ff; font-size:.85rem; }
+.mara-studio form { display:grid; gap:12px; }
+.mara-studio label { display:grid; gap:7px; font-size:.92rem; }
+.mara-studio textarea,.mara-studio select { width:100%; box-sizing:border-box; color:#fff; background:#231534e8; border:1px solid #8657b6; border-radius:12px; padding:12px; font:inherit; }
+.mara-studio textarea:focus-visible,.mara-studio select:focus-visible,.mara-studio button:focus-visible { outline:3px solid #f0abfc; outline-offset:2px; }
+.mara-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.mara-studio button { cursor:pointer; background:linear-gradient(110deg,#7c3aed,#d946ef); color:white; font-weight:700; border:0; border-radius:12px; padding:14px; }
+.mara-studio button:disabled { opacity:.55; cursor:not-allowed; }
+.mara-error { color:#fecaca; }
+.mara-studio figure { margin:20px 0 0; }
+.mara-studio img { display:block; width:100%; max-height:550px; object-fit:contain; border-radius:12px; }
+.mara-studio figcaption { margin-top:8px; color:#d8b4fe; font-size:.8rem; }
+@media(max-width:550px) { .mara-fields { grid-template-columns:1fr; } }
