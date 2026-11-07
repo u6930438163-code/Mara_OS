@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import Dalle3Studio from "../ui/Dalle3Studio.jsx";
 import IntegrationsPanel from "./IntegrationsPanel.jsx";
+import ChatDallePrompts from "./ChatDallePrompts.jsx";
 import "../ui/dalle3-studio.css";
 import "./style.css";
 
@@ -61,7 +62,7 @@ function App() {
         {section==="chat"&&<section className="glass-card chat">
           <div className="panel-header"><div><h2>Wiadomości do agentów</h2><p>Wspólny kanał komunikacji</p></div><select aria-label="Odbiorca" value={agent} onChange={e=>setAgent(e.target.value)}>{["Wszyscy",...people].map(a=><option key={a}>{a}</option>)}</select></div>
           <div className="agent-strip">{people.map((p,i)=><button key={p} className={agent===p?"selected":""} onClick={()=>setAgent(p)}><span className={`avatar a${i}`}>{p[0]}</span>{p}</button>)}</div>
-          <div className="chat-feed" aria-live="polite">{messages.length===0?<div className="empty"><span className="big-m">M</span><h3>Witaj w Mara_OS</h3><p>Tu pojawią się wiadomości i odpowiedzi agentów po podłączeniu backendu.</p></div>:messages.map((m,i)=><article key={i} className="message"><div><strong>{m.who} → {m.to}</strong><small>{m.time}</small></div><p>{m.text}</p><div className="reactions"><button onClick={e=>e.currentTarget.classList.toggle("reacted")} aria-label="Lubię">👍</button><button onClick={e=>e.currentTarget.classList.toggle("reacted")} aria-label="Nie lubię">👎</button></div></article>)}</div>
+          <ChatDallePrompts authToken={token} onImage={image=>setMessages(m=>[...m,image])}/><div className="chat-feed" aria-live="polite">{messages.length===0?<div className="empty"><span className="big-m">M</span><h3>Witaj w Mara_OS</h3><p>Tu pojawią się wiadomości i odpowiedzi agentów po podłączeniu backendu.</p></div>:messages.map((m,i)=><article key={i} className="message"><div><strong>{m.who} → {m.to}</strong><small>{m.time}</small></div><p>{m.text}</p>{m.image&&<img src={m.image} alt={m.text} style={{maxWidth:"100%",maxHeight:440,borderRadius:12}}/>}<div className="reactions"><button onClick={e=>e.currentTarget.classList.toggle("reacted")} aria-label="Lubię">👍</button><button onClick={e=>e.currentTarget.classList.toggle("reacted")} aria-label="Nie lubię">👎</button></div></article>)}</div>
           <form className="composer" onSubmit={send}><select aria-label="Silnik AI" value={engine} onChange={e=>setEngine(e.target.value)}><option>OpenAI API</option><option>Ollama</option></select><input aria-label="Treść wiadomości" value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Napisz do agentów…"/><button type="submit">Wyślij ↑</button></form>
         </section>}
         {section==="terminal"&&<section className="glass-card"><div className="panel-header"><div><h2>Terminal</h2><p>Podgląd CLI — bez wykonywania komend systemowych</p></div><span className="pill">LOCAL DEMO</span></div><div className="terminal-output"><p>$ Mara_OS terminal · tryb demonstracyjny</p>{history.map((h,i)=><div key={i}><p><b>$</b> {h.value}</p><p className="output">{h.output}</p></div>)}</div><form className="composer" onSubmit={command}><span>$</span><input aria-label="Polecenie terminala" value={terminal} onChange={e=>setTerminal(e.target.value)} placeholder="help"/><button>Uruchom</button></form></section>}
