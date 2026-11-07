@@ -11,9 +11,11 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from services.dalle3 import generate_image, ImageGenerationError
+from services.tasks import create_task, list_tasks
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 8192
+TASK_DB = ROOT / "data" / "tasks.sqlite3"
 
 class Handler(BaseHTTPRequestHandler):
     def _json(self, status, value):
@@ -32,13 +34,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/tasks":
+            if not self._authorized():
+                return self._json(401, {"error": "Unauthorized"})
+            TASK_DB.parent.mkdir(parents=True, exist_ok=True)
+            return self._json(200, {"tasks": list_tasks(TASK_DB)})
         if path == "/api/health":
             return self._json(200, {"name": "Mara_OS", "status": "ok", "image_model": "dall-e-3"})
         return self._json(404, {"error": "Not found"})
 
     def do_POST(self):
         path = urlsplit(self.path).path
-        if path != "/api/images/generate":
+        if path not in ("/api/images/generate", "/api/tasks"):
             return self._json(404, {"error": "Not found"})
         if not self._authorized():
             return self._json(401, {"error": "Unauthorized"})
@@ -51,6 +58,10 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict):
                 return self._json(400, {"error": "Expected JSON object"})
+            if path == "/api/tasks":
+                TASK_DB.parent.mkdir(parents=True, exist_ok=True)
+                ident = create_task(TASK_DB, data.get("description", ""))
+                return self._json(201, {"id": ident, "state": "pending"})
             result = generate_image(
                 data.get("prompt", ""), size=data.get("size", "1024x1024"),
                 quality=data.get("quality", "hd"), style=data.get("style", "vivid"))
