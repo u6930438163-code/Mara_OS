@@ -1,4 +1,5 @@
 import React, {useState, useRef, useEffect} from "react";
+import VideoRecorder from "./VideoRecorder.jsx";
 
 /** Compact, user-initiated Real Vision image analysis panel. */
 export default function RealVision({authToken=""}) {
@@ -141,7 +142,7 @@ export default function RealVision({authToken=""}) {
     } catch(err) {setError(err.message || "Nie udało się połączyć z Vision.");}
     finally {setBusy(false);setProgress("");}
   }
-  return <section className="glass-card" style={{width:"100%",boxSizing:"border-box"}}>
+  return <div style={{display:"grid",gap:12}}><VideoRecorder/><section className="glass-card" style={{width:"100%",boxSizing:"border-box"}}>
     <div className="panel-header"><div><h2>Real Vision + Ollama</h2><p>Llama 3.2 Vision 11B · analiza na żądanie</p></div><span className="pill">{busy?"Analiza…":"Gotowy do przesłania"}</span></div>
     <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
       <label>Zdjęcie / zrzut ekranu <input type="file" accept="image/png,image/jpeg,image/webp" onChange={choose}/></label>
@@ -163,5 +164,5 @@ export default function RealVision({authToken=""}) {
     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button type="button" disabled={!authToken||busy} onClick={loadHistory}>Wczytaj historię</button><button type="button" disabled={!authToken||busy} onClick={clearHistory}>Usuń historię serwera</button></div>
     {history.length>0&&<details><summary>Historia analiz ({history.length}) — tylko w bieżącej sesji</summary>{history.map(h=><article key={h.id} style={{padding:8,borderBottom:"1px solid #7775"}}><strong>{h.agent} · {h.date} · {h.source}</strong><p style={{whiteSpace:"pre-wrap"}}>{h.text}</p></article>)}</details>}
     <p style={{fontSize:12,opacity:.7}}>Przechwytywana jest pojedyncza klatka po udzieleniu zgody przeglądarce. Strumień kamery lub ekranu jest następnie zatrzymywany. Wysyłanie do modelu następuje dopiero po kliknięciu Analizuj; Wideo jest analizowane jako trzy klatki (10%, 50%, 90% czasu), nie jako strumień na żywo. Historia może być opcjonalnie zapisana w lokalnej bazie serwera (bez obrazów). Wybór agenta określa odbiorcę raportu; po zaznaczeniu opcji worker dostaje wyłącznie tekst analizy. Worker musi być osobno uruchomiony, aby wykonać zadanie.</p>
-  </section>;
+  </section></div>;
 }
