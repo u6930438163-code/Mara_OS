@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from services.dalle3 import generate_image, ImageGenerationError
 from services.tasks import create_task, list_tasks
 from services.ai import ask_agent, analyze_image, AIError
+from services.ollama_manager import status as ollama_status
 from services.python_syntax import check_source
 from services.global_sync import publish as sync_publish, events as sync_events
 from services.vision_history import save as save_vision, list_recent as vision_history, delete_all as clear_vision_history
@@ -100,6 +101,10 @@ class Handler(BaseHTTPRequestHandler):
             if not self._authorized():
                 return self._json(401, {"error": "Unauthorized"})
             return self._json(200, {"workers": list_workers()})
+        if path == "/api/ollama/status":
+            if not self._authorized():
+                return self._json(401, {"error": "Unauthorized"})
+            return self._json(200, ollama_status())
         if path == "/api/agents/status":
             if not self._authorized():
                 return self._json(401, {"error": "Unauthorized"})
