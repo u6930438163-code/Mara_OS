@@ -13,7 +13,7 @@ if [[ -r /etc/os-release ]]; then
   fi
 fi
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y konsole bash bash-completion sudo coreutils util-linux procps iproute2 openssh-client git curl python3
+DEBIAN_FRONTEND=noninteractive apt-get install -y konsole bash bash-completion sudo coreutils util-linux procps iproute2 openssh-client git curl python3 parted
 echo "KDE Konsole and common Linux CLI utilities installed."
 echo "Launch Konsole from KDE menu or run: bash scripts/open-linux-terminal.sh"
 echo "GParted (GUI) and parted (CLI) are separate optional packages."
