@@ -59,10 +59,10 @@ def get_events(job_id):
         return [dict(row) for row in db.execute(
             "SELECT id,agent,state,message,created_at FROM events WHERE job_id=? ORDER BY id", (job_id,))]
 
-def claim(agent):
+def claim(agent, kind=None):
     with connect() as db:
         db.execute("BEGIN IMMEDIATE")
-        row = db.execute("SELECT id,kind,payload FROM jobs WHERE agent=? AND state='pending' ORDER BY id LIMIT 1", (agent,)).fetchone()
+        row = db.execute("SELECT id,kind,payload FROM jobs WHERE agent=? AND state='pending' AND (? IS NULL OR kind=?) ORDER BY id LIMIT 1", (agent, kind, kind)).fetchone()
         if row is None:
             return None
         now = int(time.time())
@@ -82,9 +82,14 @@ async def execute(agent, job):
         return json.dumps(await run_adapter(job["payload"]), ensure_ascii=False)
     raise ValueError("Unsupported task kind")
 
-async def worker(agent):
+async def worker(agent, kind=None, slot_id=None):
     while True:
-        job = await asyncio.to_thread(claim, agent)
+        if slot_id:
+            from services.worker_registry import list_workers
+            slot = next((x for x in await asyncio.to_thread(list_workers) if x['id'] == slot_id), None)
+            if not slot or slot['desired'] != 'running':
+                return
+        job = await asyncio.to_thread(claim, agent, kind)
         if job is None:
             await asyncio.sleep(POLL_SECONDS)
             continue
@@ -103,7 +108,26 @@ async def main():
     # Crash recovery: requeue incomplete jobs on restart.
     with connect() as db:
         db.execute("UPDATE jobs SET state='pending',updated_at=? WHERE state='running'", (int(time.time()),))
-    await asyncio.gather(*(worker(agent) for agent in AGENTS))
+    from services.worker_registry import initialize, list_workers
+    await asyncio.to_thread(initialize)
+    active = {}
+    try:
+        while True:
+            slots = await asyncio.to_thread(list_workers)
+            desired = {x['id']: x for x in slots if x['desired'] == 'running'}
+            for ident, task in list(active.items()):
+                if ident not in desired or task.done():
+                    if not task.done():
+                        task.cancel()
+                    active.pop(ident)
+            for ident, slot in desired.items():
+                if ident not in active:
+                    active[ident] = asyncio.create_task(worker(slot['agent'], slot['kind'], ident))
+            await asyncio.sleep(POLL_SECONDS)
+    finally:
+        for task in active.values():
+            task.cancel()
+        await asyncio.gather(*active.values(), return_exceptions=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
