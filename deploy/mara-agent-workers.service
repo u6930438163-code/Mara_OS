@@ -1,0 +1,29 @@
+[Unit]
+Description=Mara_OS four-agent background workers
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mara-agents
+Group=mara-agents
+WorkingDirectory=/opt/mara-os
+Environment=PYTHONPATH=/opt/mara-os
+EnvironmentFile=-/etc/mara-os/agents.env
+ExecStart=/opt/mara-os/.venv-ai/bin/python -m services.agent_workers
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mara-os/data
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryMax=1G
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target
