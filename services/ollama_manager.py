@@ -52,3 +52,46 @@ def status():
     except (urllib.error.URLError, TimeoutError, ValueError, OSError):
         result["errors"].append("Unable to read loaded models")
     return result
+
+
+def _model_name(name):
+    import re
+    if not isinstance(name, str) or not 1 <= len(name) <= 180 or not re.fullmatch(r"[A-Za-z0-9_.:/-]+", name):
+        raise ValueError("Invalid model name")
+    return name
+
+
+def _post(path, body, timeout=20):
+    req = urllib.request.Request(_base() + path, data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            return json.load(response)
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        raise RuntimeError("Ollama operation failed") from exc
+
+
+def unload_model(name):
+    """Unload a locally running model without deleting its files."""
+    name = _model_name(name)
+    installed = {item.get("name") for item in status()["installed_models"]}
+    if name not in installed:
+        raise ValueError("Model not installed")
+    _post("/api/generate", {"model": name, "prompt": "", "keep_alive": 0, "stream": False})
+    return {"ok": True, "action": "unload", "model": name}
+
+
+def delete_model(name):
+    """Delete a locally installed model, with caller-confirmed intent."""
+    name = _model_name(name)
+    installed = {item.get("name") for item in status()["installed_models"]}
+    if name not in installed:
+        raise ValueError("Model not installed")
+    req = urllib.request.Request(_base() + "/api/delete", data=json.dumps({"model": name}).encode(),
+                                 headers={"Content-Type": "application/json"}, method="DELETE")
+    try:
+        with urllib.request.urlopen(req, timeout=30):
+            pass
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        raise RuntimeError("Unable to delete model") from exc
+    return {"ok": True, "action": "delete", "model": name}
