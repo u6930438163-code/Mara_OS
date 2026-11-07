@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import Dalle3Studio from "../ui/Dalle3Studio.jsx";
+import IntegrationsPanel from "./IntegrationsPanel.jsx";
 import "../ui/dalle3-studio.css";
 import "./style.css";
 
 const people = ["Aria", "Alex", "Astyria", "Aurelius"];
-const sections = [["chat","Czat"],["terminal","Terminal"],["agents","Agenci"],["tasks","Zadania"],["studio","DALL·E 3"],["settings","Ustawienia"]];
+const sections = [["chat","Czat"],["terminal","Terminal"],["agents","Agenci"],["tasks","Zadania"],["studio","DALL·E 3"],["integrations","Integracje AI"],["settings","Ustawienia"]];
 function App() {
   const [section,setSection] = useState("chat");
   const [agent,setAgent] = useState("Wszyscy");
@@ -67,6 +68,7 @@ function App() {
         {section==="agents"&&<section className="glass-card"><div className="panel-header"><div><h2>Czterej agenci AI</h2><p>Równorzędni współpracownicy — wizualny szkic dashboardów</p></div></div><div className="agent-grid">{people.map((p,i)=><div className="agent-card" key={p}><div className={`avatar large a${i}`}>{p[0]}</div><h3>{p}</h3><span className="pill">Niepołączony</span><p>Aktywność i historia będą dostępne po podłączeniu rzeczywistych logów.</p><button onClick={()=>{setAgent(p);setSection("chat")}}>Otwórz czat</button></div>)}</div></section>}
         {section==="tasks"&&<section className="glass-card"><div className="panel-header"><div><h2>Menadżer zadań</h2><p>Lokalna demonstracja listy</p></div><span className="pill">{tasks.filter(t=>!t.done).length} oczekuje</span></div><form className="composer" onSubmit={addTask}><input aria-label="Opis zadania" value={task} onChange={e=>setTask(e.target.value)} placeholder="Dodaj nowe zadanie…"/><button>Dodaj +</button></form><div className="task-list">{tasks.map(t=><div className="task-row" key={t.id}><label><input type="checkbox" checked={t.done} onChange={()=>setTasks(v=>v.map(x=>x.id===t.id?{...x,done:!x.done}:x))}/><span className={t.done?"done":""}>{t.text}</span></label><button onClick={()=>setTasks(v=>v.filter(x=>x.id!==t.id))}>Usuń</button></div>)}</div></section>}
         {section==="studio"&&<section className="studio-layout"><div className="notice">DALL·E 3 — jedyny generator grafiki AI w Mara_OS. Do generowania potrzebny jest działający serwer i token sesji.</div><label className="setting">Token sesji (niezapisany)<input type="password" value={token} onChange={e=>setToken(e.target.value)} autoComplete="off"/></label><Dalle3Studio authToken={token}/></section>}
+        {section==="integrations"&&<IntegrationsPanel/>}
         {section==="settings"&&<section className="glass-card settings"><h2>Wygląd Mara_OS</h2><p>Zmiany działają natychmiast w podglądzie.</p><label className="setting">Adres tapety (URL obrazu)<input value={wallpaper} onChange={e=>setWallpaper(e.target.value)} placeholder="https://…/tapeta.jpg"/></label><label className="setting">Przezroczystość paneli: {glass}%<input type="range" min="20" max="95" value={glass} onChange={e=>setGlass(Number(e.target.value))}/></label><label className="toggle"><input type="checkbox" checked={glow} onChange={e=>setGlow(e.target.checked)}/> Fioletowa poświata</label><button onClick={()=>{setGlass(75);setGlow(true);setWallpaper("")}}>Przywróć wygląd</button><p className="hint">Własną tapetę z projektu można docelowo umieścić jako lokalny plik w katalogu public.</p></section>}
       </div>
     </div>
