@@ -15,6 +15,7 @@ from services.tasks import create_task, list_tasks
 from services.ai import ask_agent, analyze_image, AIError
 from services.github_read import repo_info, GitHubError
 from services.openai_agents import available as agents_available, run_agent
+from services.worker_registry import list_workers, add_worker, remove_worker
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 4 * 1024 * 1024
@@ -37,6 +38,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/api/workers":
+            if not self._authorized():
+                return self._json(401, {"error": "Unauthorized"})
+            return self._json(200, {"workers": list_workers()})
         if path == "/api/agents/status":
             if not self._authorized():
                 return self._json(401, {"error": "Unauthorized"})
@@ -63,7 +68,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlsplit(self.path).path
-        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision", "/api/agents/run"):
+        if path not in ("/api/images/generate", "/api/tasks", "/api/ai/chat", "/api/ai/vision", "/api/agents/run", "/api/workers/create", "/api/workers/remove"):
             return self._json(404, {"error": "Not found"})
         if not self._authorized():
             return self._json(401, {"error": "Unauthorized"})
@@ -76,6 +81,13 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict):
                 return self._json(400, {"error": "Expected JSON object"})
+            if path == "/api/workers/create":
+                return self._json(201, {"id": add_worker(data.get("agent"), data.get("kind"))})
+            if path == "/api/workers/remove":
+                ident = data.get("id")
+                if not isinstance(ident, str) or len(ident) != 32:
+                    return self._json(400, {"error": "Invalid worker id"})
+                return self._json(200, {"stopped": remove_worker(ident)})
             if path == "/api/agents/run":
                 if length > 16384:
                     return self._json(413, {"error": "Agent request too large"})
