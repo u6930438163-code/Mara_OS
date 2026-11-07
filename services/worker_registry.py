@@ -4,7 +4,7 @@ import time
 import uuid
 from services.agent_workers import AGENTS, connect
 
-KINDS = ("chat", "diagnostics")
+KINDS = ("chat", "diagnostics", "vision_report")
 MAX_PER_AGENT = 8
 
 def initialize():
