@@ -90,16 +90,24 @@ export default function RealVision({authToken=""}) {
     if (!image || !authToken || busy) return;
     setBusy(true);setError("");setResult("");
     try {
-      const response=await fetch("/api/ai/vision",{
-        method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken},
-        body:JSON.stringify({question,image})
-      });
-      if (!response.ok) throw new Error("Błąd usługi Vision (HTTP "+response.status+").");
-      const data=await response.json();
-      setResult(data.text || "Model nie zwrócił opisu.");
+      const frames=videoFrames.length?videoFrames:[{time:null,image}];
+      const reports=[];
+      for (let i=0;i<frames.length;i++) {
+        setProgress(frames.length>1?`Klatka ${i+1}/${frames.length}`:"Analizowanie obrazu");
+        const response=await fetch("/api/ai/vision",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken},
+          body:JSON.stringify({question:question+" Analiza przypisana do agenta "+agent+".",image:frames[i].image})
+        });
+        if (!response.ok) throw new Error("Błąd usługi Vision (HTTP "+response.status+").");
+        const data=await response.json();
+        reports.push((frames[i].time===null?"Obraz":"Klatka "+frames[i].time+" s")+": "+(data.text||"Brak odpowiedzi"));
+      }
+      const text=reports.join("\n\n");
+      setResult(text);
+      setHistory(h=>[{id:Date.now(),agent,date:new Date().toLocaleString("pl-PL"),source:videoFrames.length?"Wideo":filename||"Obraz",text},...h].slice(0,20));
     } catch(err) {setError(err.message || "Nie udało się połączyć z Vision.");}
-    finally {setBusy(false);}
+    finally {setBusy(false);setProgress("");}
   }
   return <section className="glass-card" style={{width:"100%",boxSizing:"border-box"}}>
     <div className="panel-header"><div><h2>Real Vision + Ollama</h2><p>Llama 3.2 Vision 11B · analiza na żądanie</p></div><span className="pill">{busy?"Analiza…":"Gotowy do przesłania"}</span></div>
@@ -119,41 +127,5 @@ export default function RealVision({authToken=""}) {
     {result&&<div aria-live="polite" style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}><strong>Wynik analizy</strong><p>{result}</p></div>}
     {history.length>0&&<details><summary>Historia analiz ({history.length}) — tylko w bieżącej sesji</summary>{history.map(h=><article key={h.id} style={{padding:8,borderBottom:"1px solid #7775"}}><strong>{h.agent} · {h.date} · {h.source}</strong><p style={{whiteSpace:"pre-wrap"}}>{h.text}</p></article>)}</details>}
     <p style={{fontSize:12,opacity:.7}}>Przechwytywana jest pojedyncza klatka po udzieleniu zgody przeglądarce. Strumień kamery lub ekranu jest następnie zatrzymywany. Wysyłanie do modelu następuje dopiero po kliknięciu Analizuj; Wideo jest analizowane jako trzy klatki (10%, 50%, 90% czasu), nie jako strumień na żywo. Historia jest przechowywana wyłącznie w pamięci otwartej strony; wybór agenta oznacza podpis analizy, nie uruchomienie niezależnego workera.</p>
-  </section>;
-}    try {
-      const frames=videoFrames.length?videoFrames:[{time:null,image}];
-      const reports=[];
-      for (let i=0;i<frames.length;i++) {
-        setProgress(frames.length>1?`Klatka ${i+1}/${frames.length}`:"Analizowanie obrazu");
-        const response=await fetch("/api/ai/vision",{
-          method:"POST",
-          headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken},
-          body:JSON.stringify({question:question+" Odpowiedz jako analityk "+agent+".",image:frames[i].image})
-        });
-        if (!response.ok) throw new Error("Błąd usługi Vision (HTTP "+response.status+").");
-        const data=await response.json();
-        reports.push((frames[i].time===null?"Obraz":"Klatka "+frames[i].time+" s")+": "+(data.text||"Brak odpowiedzi"));
-      }
-      const text=reports.join("\\n\\n");
-      setResult(text);
-      setHistory(h=>[{id:Date.now(),agent,date:new Date().toLocaleString("pl-PL"),source:videoFrames.length?"Wideo":filename||"Obraz",text},...h].slice(0,20));
-    } catch(err) {setError(err.message || "Nie udało się połączyć z Vision.");}
-    finally {setBusy(false);}
-  }
-  return <section className="glass-card" style={{width:"100%",boxSizing:"border-box"}}>
-    <div className="panel-header"><div><h2>Real Vision + Ollama</h2><p>Llama 3.2 Vision 11B · analiza na żądanie</p></div><span className="pill">{busy?"Analiza…":"Gotowy do przesłania"}</span></div>
-    <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-      <label>Zdjęcie / zrzut ekranu <input type="file" accept="image/png,image/jpeg,image/webp" onChange={choose}/></label>
-      <button type="button" disabled={captureBusy||busy} onClick={()=>capture("camera")}>{captureBusy?"Przechwytywanie…":"📷 Kamera"}</button>
-      <button type="button" disabled={captureBusy||busy} onClick={()=>capture("screen")}>🖥️ Ekran</button>
-      <span style={{fontSize:12}}>{filename || "Nie wybrano pliku"}</span>
-    </div>
-    {image&&<img src={image} alt="Obraz wybrany do analizy" style={{maxWidth:"100%",maxHeight:220,objectFit:"contain",borderRadius:8}}/>}
-    <label style={{display:"block"}}>Pytanie do Vision <input style={{width:"100%",boxSizing:"border-box"}} value={question} maxLength={4000} onChange={e=>setQuestion(e.target.value)}/></label>
-    {!authToken&&<p role="status">Ustaw token sesji w zakładce Czat, aby wysłać obraz.</p>}
-    <button type="button" disabled={!image||!question.trim()||!authToken||busy} onClick={analyze}>{busy?"Analizowanie…":"Analizuj obraz"}</button>
-    {error&&<p role="alert">{error}</p>}
-    {result&&<div aria-live="polite" style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}><strong>Wynik analizy</strong><p>{result}</p></div>}
-    <p style={{fontSize:12,opacity:.7}}>Przechwytywana jest pojedyncza klatka po udzieleniu zgody przeglądarce. Strumień kamery lub ekranu jest następnie zatrzymywany. Wysyłanie do modelu następuje dopiero po kliknięciu Analizuj; ciągłe wideo nie jest jeszcze obsługiwane.</p>
   </section>;
 }
