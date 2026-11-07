@@ -32,14 +32,17 @@ def _request(messages, *, vision=False):
 def _ollama(messages, *, vision=False):
     """Local Ollama adapter; never forward images to a third-party endpoint."""
     base = os.environ.get("MARA_OLLAMA_URL", "http://127.0.0.1:11434")
-    parsed = urlsplit(base)
+    try:
+        parsed = urlsplit(base)
+    except ValueError as exc:
+        raise AIError("Invalid Ollama endpoint") from exc
     # Prevent this service from becoming an SSRF proxy.
     if parsed.scheme != "http" or parsed.username or parsed.password or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
         raise AIError("Invalid Ollama endpoint")
     try:
         if not ipaddress.ip_address(parsed.hostname).is_loopback:
             raise AIError("Ollama must be bound to loopback")
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         raise AIError("Ollama endpoint must be a loopback IP") from exc
     model = os.environ.get("MARA_OLLAMA_VISION_MODEL" if vision else "MARA_OLLAMA_TEXT_MODEL",
                            "llama3.2-vision:11b" if vision else "hf.co/mradermacher/Floppa-12B-Gemma3-Uncensored-GGUF:Q8_0")
