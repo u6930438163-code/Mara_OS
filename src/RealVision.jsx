@@ -11,6 +11,21 @@ export default function RealVision({authToken=""}) {
   const [captureBusy,setCaptureBusy]=useState(false);
   const [agent,setAgent]=useState("Aria");
   const [history,setHistory]=useState([]);
+  const [persist,setPersist]=useState(false);
+  async function loadHistory() {
+    if (!authToken) return;
+    try {const response=await fetch("/api/vision/history",{headers:{"Authorization":"Bearer "+authToken}});
+      if (!response.ok) throw new Error("Nie można pobrać historii.");
+      const data=await response.json();
+      setHistory(data.items.map(x=>({id:x.id,agent:x.agent,date:x.created_at,source:x.source,text:x.result})));
+    } catch(err) {setError(err.message);}
+  }
+  async function clearHistory() {
+    if (!authToken || !window.confirm("Usunąć całą zapisaną historię Real Vision?")) return;
+    try {const response=await fetch("/api/vision/history/clear",{method:"POST",headers:{"Authorization":"Bearer "+authToken,"Content-Type":"application/json"},body:"{}"});
+      if (!response.ok) throw new Error("Nie można usunąć historii.");setHistory([]);
+    } catch(err) {setError(err.message);}
+  }
   const [videoFrames,setVideoFrames]=useState([]);
   const [progress,setProgress]=useState("");
   const captureStream=useRef(null);
@@ -97,7 +112,7 @@ export default function RealVision({authToken=""}) {
         const response=await fetch("/api/ai/vision",{
           method:"POST",
           headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken},
-          body:JSON.stringify({question:question+" Analiza przypisana do agenta "+agent+".",image:frames[i].image})
+          body:JSON.stringify({question:question+" Analiza przypisana do agenta "+agent+".",image:frames[i].image,agent,source:videoFrames.length?"video":"image",save_history:persist})
         });
         if (!response.ok) throw new Error("Błąd usługi Vision (HTTP "+response.status+").");
         const data=await response.json();
@@ -121,11 +136,13 @@ export default function RealVision({authToken=""}) {
     {image&&<img src={image} alt="Obraz wybrany do analizy" style={{maxWidth:"100%",maxHeight:220,objectFit:"contain",borderRadius:8}}/>}
     <label>Agent <select value={agent} onChange={e=>setAgent(e.target.value)}>{["Aria","Alex","Astyria","Aurelius"].map(a=><option key={a}>{a}</option>)}</select></label>
     <label style={{display:"block"}}>Pytanie do Vision <input style={{width:"100%",boxSizing:"border-box"}} value={question} maxLength={4000} onChange={e=>setQuestion(e.target.value)}/></label>
+    <label><input type="checkbox" checked={persist} onChange={e=>setPersist(e.target.checked)}/> Zapisuj wyniki na serwerze (bez obrazów)</label>
     {!authToken&&<p role="status">Ustaw token sesji w zakładce Czat, aby wysłać obraz.</p>}
     <button type="button" disabled={!image||!question.trim()||!authToken||busy} onClick={analyze}>{busy?(progress||"Analizowanie…"):"Analizuj obraz"}</button>
     {error&&<p role="alert">{error}</p>}
     {result&&<div aria-live="polite" style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}><strong>Wynik analizy</strong><p>{result}</p></div>}
+    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button type="button" disabled={!authToken||busy} onClick={loadHistory}>Wczytaj historię</button><button type="button" disabled={!authToken||busy} onClick={clearHistory}>Usuń historię serwera</button></div>
     {history.length>0&&<details><summary>Historia analiz ({history.length}) — tylko w bieżącej sesji</summary>{history.map(h=><article key={h.id} style={{padding:8,borderBottom:"1px solid #7775"}}><strong>{h.agent} · {h.date} · {h.source}</strong><p style={{whiteSpace:"pre-wrap"}}>{h.text}</p></article>)}</details>}
-    <p style={{fontSize:12,opacity:.7}}>Przechwytywana jest pojedyncza klatka po udzieleniu zgody przeglądarce. Strumień kamery lub ekranu jest następnie zatrzymywany. Wysyłanie do modelu następuje dopiero po kliknięciu Analizuj; Wideo jest analizowane jako trzy klatki (10%, 50%, 90% czasu), nie jako strumień na żywo. Historia jest przechowywana wyłącznie w pamięci otwartej strony; wybór agenta oznacza podpis analizy, nie uruchomienie niezależnego workera.</p>
+    <p style={{fontSize:12,opacity:.7}}>Przechwytywana jest pojedyncza klatka po udzieleniu zgody przeglądarce. Strumień kamery lub ekranu jest następnie zatrzymywany. Wysyłanie do modelu następuje dopiero po kliknięciu Analizuj; Wideo jest analizowane jako trzy klatki (10%, 50%, 90% czasu), nie jako strumień na żywo. Historia może być opcjonalnie zapisana w lokalnej bazie serwera (bez obrazów). Wybór agenta oznacza podpis analizy, nie uruchomienie niezależnego workera.</p>
   </section>;
 }
