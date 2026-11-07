@@ -4,56 +4,72 @@ import Dalle3Studio from "../ui/Dalle3Studio.jsx";
 import "../ui/dalle3-studio.css";
 import "./style.css";
 
-const agents = ["Aria", "Alex", "Astyria", "Aurelius"];
+const people = ["Aria", "Alex", "Astyria", "Aurelius"];
+const sections = [["chat","Czat"],["terminal","Terminal"],["agents","Agenci"],["tasks","Zadania"],["studio","DALL·E 3"],["settings","Ustawienia"]];
 function App() {
-  const [page, setPage] = useState("studio");
-  const [selected, setSelected] = useState("Aria");
-  const [messages, setMessages] = useState([]);
-  const [draft, setDraft] = useState("");
-  const [jobs, setJobs] = useState([]);
-  const [jobDraft, setJobDraft] = useState("");
-  const [token, setToken] = useState("");
-  const [health, setHealth] = useState("Nie sprawdzono");
-
-  async function checkHealth() {
-    try {
-      const res = await fetch("/api/health");
-      if (!res.ok) throw Error();
-      setHealth("API odpowiada");
-    } catch { setHealth("API niedostępne"); }
-  }
+  const [section,setSection] = useState("chat");
+  const [agent,setAgent] = useState("Wszyscy");
+  const [engine,setEngine] = useState("OpenAI API");
+  const [draft,setDraft] = useState("");
+  const [messages,setMessages] = useState([]);
+  const [terminal,setTerminal] = useState("help");
+  const [history,setHistory] = useState([]);
+  const [tasks,setTasks] = useState([]);
+  const [task,setTask] = useState("");
+  const [glass,setGlass] = useState(75);
+  const [glow,setGlow] = useState(true);
+  const [wallpaper,setWallpaper] = useState("");
+  const [token,setToken] = useState("");
+  const [sidebar,setSidebar] = useState(false);
+  const [showInfo,setShowInfo] = useState(true);
   function send(e) {
     e.preventDefault();
     if (!draft.trim()) return;
-    setMessages(m => [...m, { who: "Ty", text: draft.trim(), at: new Date().toLocaleTimeString("pl-PL") }]);
+    setMessages(m=>[...m,{who:"Ty",to:agent,text:draft.trim(),time:new Date().toLocaleTimeString("pl-PL")}]);
     setDraft("");
   }
-  function addJob(e) {
+  function command(e) {
     e.preventDefault();
-    if (!jobDraft.trim()) return;
-    setJobs(j => [...j, { id: Date.now(), text: jobDraft.trim(), state: "Oczekuje" }]);
-    setJobDraft("");
+    const value=terminal.trim();
+    if (!value) return;
+    const output=value==="help"?"Dostępne polecenia demonstracyjne: help, clear, agents, about":value==="agents"?people.join(" · "):value==="about"?"Mara_OS — prototyp interfejsu":value==="clear"?"":"Polecenie nie zostało wykonane — terminal nie jest połączony z systemem.";
+    setHistory(h=>value==="clear"?[]:[...h,{value,output}]);
+    setTerminal("");
   }
-  return <main className="shell">
-    <header className="top"><div className="brand"><strong>M</strong><div><h1>Mara_OS</h1><small>Panel rozwojowy · wersja 0.1.0</small></div></div><span className="status">{health}</span></header>
-    <nav aria-label="Moduły Mara_OS">
-      {[["studio","Grafika AI"],["chat","Czat"],["agents","Agenci"],["jobs","Zadania"],["system","System"]].map(([key,label]) =>
-        <button key={key} className={page===key?"active":""} onClick={()=>setPage(key)}>{label}</button>)}
-    </nav>
-    {page==="studio" && <><p className="hint">Jedyny generator obrazów: DALL·E 3. Wygenerowanie grafiki wymaga aktywnego API i może wiązać się z opłatą.</p>
-      <label className="token">Token sesji API (nie jest zapisywany)<input type="password" autoComplete="off" value={token} onChange={e=>setToken(e.target.value)} placeholder="MARA_SESSION_TOKEN"/></label>
-      <Dalle3Studio authToken={token}/></>}
-    {page==="chat" && <section className="panel"><h2>Czat Mara_OS</h2><p className="hint">Lokalny interfejs demonstracyjny. Wysyłanie do agentów wymaga osobnej integracji.</p>
-      <div className="messages" aria-live="polite">{messages.map((m,i)=><article key={i}><b>{m.who}</b><small>{m.at}</small><p>{m.text}</p></article>)}</div>
-      <form onSubmit={send} className="compose"><input aria-label="Wiadomość" value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Napisz wiadomość…"/><button>Wyślij</button></form></section>}
-    {page==="agents" && <section className="panel"><h2>Agenci AI</h2><p className="hint">Karty konfiguracyjne — nie oznaczają uruchomionych workerów.</p>
-      <div className="agents">{agents.map(a=><button className={selected===a?"active":""} key={a} onClick={()=>setSelected(a)}>✦ {a}</button>)}</div>
-      <p>Wybrany agent: <strong>{selected}</strong></p><p>Status: niepołączony</p></section>}
-    {page==="jobs" && <section className="panel"><h2>Kolejka zadań</h2><p className="hint">Lista lokalna w pamięci przeglądarki. Nie wykonuje poleceń.</p>
-      <form onSubmit={addJob} className="compose"><input aria-label="Nowe zadanie" value={jobDraft} onChange={e=>setJobDraft(e.target.value)} placeholder="Opis zadania…"/><button>Dodaj</button></form>
-      {jobs.map(j=><div className="job" key={j.id}><span>{j.text} · {j.state}</span><button onClick={()=>setJobs(v=>v.filter(x=>x.id!==j.id))}>Usuń</button></div>)}</section>}
-    {page==="system" && <section className="panel"><h2>Diagnostyka API</h2><p>Stan: {health}</p><button onClick={checkHealth}>Sprawdź połączenie</button>
-      <p className="hint">Brak dostępu do rzeczywistych procesów systemowych w tym panelu.</p></section>}
-  </main>;
+  function addTask(e) {
+    e.preventDefault();
+    if (!task.trim()) return;
+    setTasks(t=>[...t,{id:Date.now()+Math.random(),text:task.trim(),done:false}]);
+    setTask("");
+  }
+  return <div className={`desktop ${glow?"glow":""}`} style={{"--glass":glass/100,"--wallpaper":wallpaper?`url("${wallpaper}")`:"none"}}>
+    <div className="wallpaper" aria-hidden="true"/>
+    <div className="workspace">
+      <aside className={`sidebar ${sidebar?"expanded":""}`}>
+        <div className="logo"><span className="logo-mark">M</span><div><strong>Mara_OS</strong><small>Workspace</small></div></div>
+        <nav aria-label="Główne menu">{sections.map(([key,name])=><button key={key} className={section===key?"selected":""} onClick={()=>{setSection(key);setSidebar(false)}}>{name}</button>)}</nav>
+        <div className="sidebar-bottom"><span className="dot"/> Prototyp GUI</div>
+      </aside>
+      <div className="mainarea">
+        <header className="toolbar">
+          <button className="mobile-menu" onClick={()=>setSidebar(s=>!s)} aria-label="Pokaż menu">☰</button>
+          <div><strong>{sections.find(s=>s[0]===section)?.[1]}</strong><small>Mara_OS / Panel główny</small></div>
+          <div className="toolbar-actions"><span className="connection">● Offline demo</span><button onClick={()=>setShowInfo(v=>!v)} aria-label="Pokaż lub ukryj informacje">ⓘ</button></div>
+        </header>
+        {showInfo&&<div className="notice">Interaktywny szkic interfejsu. Czat, terminal i agenci nie wykonują jeszcze rzeczywistych poleceń. Tapetę ustawisz w Ustawieniach.</div>}
+        {section==="chat"&&<section className="glass-card chat">
+          <div className="panel-header"><div><h2>Wiadomości do agentów</h2><p>Wspólny kanał komunikacji</p></div><select aria-label="Odbiorca" value={agent} onChange={e=>setAgent(e.target.value)}>{["Wszyscy",...people].map(a=><option key={a}>{a}</option>)}</select></div>
+          <div className="agent-strip">{people.map((p,i)=><button key={p} className={agent===p?"selected":""} onClick={()=>setAgent(p)}><span className={`avatar a${i}`}>{p[0]}</span>{p}</button>)}</div>
+          <div className="chat-feed" aria-live="polite">{messages.length===0?<div className="empty"><span className="big-m">M</span><h3>Witaj w Mara_OS</h3><p>Tu pojawią się wiadomości i odpowiedzi agentów po podłączeniu backendu.</p></div>:messages.map((m,i)=><article key={i} className="message"><div><strong>{m.who} → {m.to}</strong><small>{m.time}</small></div><p>{m.text}</p><div className="reactions"><button onClick={e=>e.currentTarget.classList.toggle("reacted")} aria-label="Lubię">👍</button><button onClick={e=>e.currentTarget.classList.toggle("reacted")} aria-label="Nie lubię">👎</button></div></article>)}</div>
+          <form className="composer" onSubmit={send}><select aria-label="Silnik AI" value={engine} onChange={e=>setEngine(e.target.value)}><option>OpenAI API</option><option>Ollama</option></select><input aria-label="Treść wiadomości" value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Napisz do agentów…"/><button type="submit">Wyślij ↑</button></form>
+        </section>}
+        {section==="terminal"&&<section className="glass-card"><div className="panel-header"><div><h2>Terminal</h2><p>Podgląd CLI — bez wykonywania komend systemowych</p></div><span className="pill">LOCAL DEMO</span></div><div className="terminal-output"><p>$ Mara_OS terminal · tryb demonstracyjny</p>{history.map((h,i)=><div key={i}><p><b>$</b> {h.value}</p><p className="output">{h.output}</p></div>)}</div><form className="composer" onSubmit={command}><span>$</span><input aria-label="Polecenie terminala" value={terminal} onChange={e=>setTerminal(e.target.value)} placeholder="help"/><button>Uruchom</button></form></section>}
+        {section==="agents"&&<section className="glass-card"><div className="panel-header"><div><h2>Czterej agenci AI</h2><p>Równorzędni współpracownicy — wizualny szkic dashboardów</p></div></div><div className="agent-grid">{people.map((p,i)=><div className="agent-card" key={p}><div className={`avatar large a${i}`}>{p[0]}</div><h3>{p}</h3><span className="pill">Niepołączony</span><p>Aktywność i historia będą dostępne po podłączeniu rzeczywistych logów.</p><button onClick={()=>{setAgent(p);setSection("chat")}}>Otwórz czat</button></div>)}</div></section>}
+        {section==="tasks"&&<section className="glass-card"><div className="panel-header"><div><h2>Menadżer zadań</h2><p>Lokalna demonstracja listy</p></div><span className="pill">{tasks.filter(t=>!t.done).length} oczekuje</span></div><form className="composer" onSubmit={addTask}><input aria-label="Opis zadania" value={task} onChange={e=>setTask(e.target.value)} placeholder="Dodaj nowe zadanie…"/><button>Dodaj +</button></form><div className="task-list">{tasks.map(t=><div className="task-row" key={t.id}><label><input type="checkbox" checked={t.done} onChange={()=>setTasks(v=>v.map(x=>x.id===t.id?{...x,done:!x.done}:x))}/><span className={t.done?"done":""}>{t.text}</span></label><button onClick={()=>setTasks(v=>v.filter(x=>x.id!==t.id))}>Usuń</button></div>)}</div></section>}
+        {section==="studio"&&<section className="studio-layout"><div className="notice">DALL·E 3 — jedyny generator grafiki AI w Mara_OS. Do generowania potrzebny jest działający serwer i token sesji.</div><label className="setting">Token sesji (niezapisany)<input type="password" value={token} onChange={e=>setToken(e.target.value)} autoComplete="off"/></label><Dalle3Studio authToken={token}/></section>}
+        {section==="settings"&&<section className="glass-card settings"><h2>Wygląd Mara_OS</h2><p>Zmiany działają natychmiast w podglądzie.</p><label className="setting">Adres tapety (URL obrazu)<input value={wallpaper} onChange={e=>setWallpaper(e.target.value)} placeholder="https://…/tapeta.jpg"/></label><label className="setting">Przezroczystość paneli: {glass}%<input type="range" min="20" max="95" value={glass} onChange={e=>setGlass(Number(e.target.value))}/></label><label className="toggle"><input type="checkbox" checked={glow} onChange={e=>setGlow(e.target.checked)}/> Fioletowa poświata</label><button onClick={()=>{setGlass(75);setGlow(true);setWallpaper("")}}>Przywróć wygląd</button><p className="hint">Własną tapetę z projektu można docelowo umieścić jako lokalny plik w katalogu public.</p></section>}
+      </div>
+    </div>
+  </div>;
 }
 createRoot(document.getElementById("root")).render(<App/>);
