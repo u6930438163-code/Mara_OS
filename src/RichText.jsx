@@ -3,7 +3,7 @@ import "./RichText.css";
 
 const keywords = /\b(curl|sudo|apt|systemctl|journalctl|git|python3?|npm|node|docker|podman|ssh|GET|POST|PUT|DELETE|SELECT|FROM|WHERE|const|let|function|return|import|export|async|await|if|else|true|false|null)\b/g;
 function Highlight({value}) {
-  return <>{String(value).split(keywords).map((part,i)=>keywords.test(part)?<span className="rt-keyword" key={i}>{part}</span>:<React.Fragment key={i}>{part}</React.Fragment>)}</>;
+  return <>{String(value).split(keywords).map((part,i)=>/^(curl|sudo|apt|systemctl|journalctl|git|python3?|npm|node|docker|podman|ssh|GET|POST|PUT|DELETE|SELECT|FROM|WHERE|const|let|function|return|import|export|async|await|if|else|true|false|null)$/.test(part)?<span className="rt-keyword" key={i}>{part}</span>:<React.Fragment key={i}>{part}</React.Fragment>)}</>;
 }
 function Inline({value}) {
   const parts=String(value).split(/(\*\*[^*\n]+\*\*|\*[^*\n]+\*|`[^`\n]+`|https?:\/\/[^\s<>]+)/g);
