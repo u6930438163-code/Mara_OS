@@ -22,9 +22,15 @@ fi
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server
 install -d -m 0755 /etc/ssh/sshd_config.d
-# Disable remote root login; keep standard user authentication unchanged
-# to avoid locking out an administrator without SSH keys.
-printf '%s\n' '# Mara_OS SSH baseline' 'PermitRootLogin no' > /etc/ssh/sshd_config.d/60-mara-os.conf
+# Root-only SSH is explicitly requested by the owner. Never embed passwords.
+# A root password must be set interactively on the target host.
+if [[ ! -t 0 ]]; then
+  echo "Interactive terminal required to set the root password safely." >&2
+  exit 1
+fi
+echo "Set the root account password locally (input is hidden)."
+passwd root
+printf '%s\n' '# Mara_OS root-only SSH' 'PermitRootLogin yes' 'PasswordAuthentication yes' 'AllowUsers root' > /etc/ssh/sshd_config.d/60-mara-os.conf
 chmod 0644 /etc/ssh/sshd_config.d/60-mara-os.conf
 if ! /usr/sbin/sshd -t; then
   echo "SSH configuration invalid; service was not enabled." >&2
